@@ -1,0 +1,1307 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icon-192.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#0f172a" />
+  <title>Prognoza Sejm 2027</title>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --card-light: #334155;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --dem: #38bdf8;
+      --dem-bg: rgba(56, 189, 248, 0.14);
+      --right: #f87171;
+      --right-bg: rgba(248, 113, 113, 0.14);
+      --warn: #fbbf24;
+      --warn-bg: rgba(251, 191, 36, 0.14);
+      --accent: #14b8a6;
+      --border: rgba(148, 163, 184, 0.18);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      padding: 14px 14px 44px;
+      max-width: 560px;
+      margin: 0 auto;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    h1 { font-size: 1.18rem; font-weight: 700; letter-spacing: -0.02em; }
+    .subtitle { font-size: 0.73rem; color: var(--muted); margin-top: 2px; }
+    .header-actions {
+      display: flex;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+    .action-btn {
+      background: var(--accent);
+      color: #042f2e;
+      font-weight: 700;
+      font-size: 0.74rem;
+      padding: 7px 10px;
+      border-radius: 10px;
+      border: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      box-shadow: 0 2px 8px rgba(20, 184, 166, 0.25);
+    }
+    .action-btn.secondary {
+      background: #38bdf8;
+      color: #082f49;
+      box-shadow: 0 2px 8px rgba(56, 189, 248, 0.25);
+    }
+    .action-btn:disabled {
+      opacity: 0.6;
+      cursor: wait;
+    }
+    input[type="file"] { display: none; }
+
+    /* Nawigacja zakładek */
+    .tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      background: var(--card);
+      padding: 5px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      margin-bottom: 12px;
+    }
+    .tab-btn {
+      background: transparent;
+      color: var(--muted);
+      border: none;
+      padding: 9px 10px;
+      border-radius: 9px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .tab-btn.active {
+      background: var(--card-light);
+      color: var(--text);
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+    }
+    .tab-view { display: none; }
+    .tab-view.active { display: block; }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+    .card-title {
+      font-size: 0.74rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      font-weight: 700;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* Pasek poziomy dla wszystkich partii z mandatami */
+    .sejm-bar-wrap {
+      position: relative;
+      height: 36px;
+      background: #0f172a;
+      border-radius: 9px;
+      overflow: hidden;
+      display: flex;
+      margin: 8px 0 6px;
+      border: 1px solid rgba(148, 163, 184, 0.2);
+    }
+    .party-seg {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      border-right: 1px solid rgba(15, 23, 42, 0.65);
+      transition: width 0.35s ease;
+      padding: 0 1px;
+      line-height: 1.0;
+    }
+    .party-seg:last-of-type { border-right: none; }
+    .seg-name {
+      font-size: 0.50rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.01em;
+      white-space: nowrap;
+    }
+    .seg-seats {
+      font-size: 0.66rem;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+    .majority-line {
+      position: absolute;
+      left: 50%;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: #facc15;
+      box-shadow: 0 0 6px rgba(250, 204, 21, 0.85);
+      z-index: 4;
+    }
+    .seg-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 10px;
+      margin-top: 6px;
+      margin-bottom: 6px;
+      font-size: 0.71rem;
+      color: var(--muted);
+    }
+    .seg-legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-weight: 600;
+    }
+
+    .bloc-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .bloc-box { padding: 10px; border-radius: 12px; }
+    .bloc-box.dem { background: var(--dem-bg); border: 1px solid rgba(56, 189, 248, 0.3); }
+    .bloc-box.right { background: var(--right-bg); border: 1px solid rgba(248, 113, 113, 0.3); }
+    .bloc-name { font-size: 0.74rem; font-weight: 700; }
+    .bloc-box.dem .bloc-name { color: var(--dem); }
+    .bloc-box.right .bloc-name { color: var(--right); }
+    .bloc-seats { font-size: 1.35rem; font-weight: 800; margin: 2px 0; }
+    .bloc-sub { font-size: 0.72rem; color: var(--muted); }
+
+    .party-row {
+      padding: 9px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .party-row:last-child { border-bottom: none; padding-bottom: 0; }
+    .party-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 5px;
+    }
+    .party-left { display: flex; align-items: center; gap: 7px; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .party-name { font-weight: 700; font-size: 0.94rem; }
+    .badge {
+      font-size: 0.64rem;
+      padding: 2px 6px;
+      border-radius: 6px;
+      font-weight: 700;
+    }
+    .badge-out { background: rgba(148, 163, 184, 0.16); color: var(--muted); }
+    .party-right { text-align: right; display: flex; align-items: baseline; gap: 7px; }
+    .pct { font-weight: 800; font-size: 0.96rem; }
+    .seats-pill {
+      background: var(--card-light);
+      font-size: 0.74rem;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 6px;
+      min-width: 52px;
+      text-align: center;
+    }
+    .seats-pill.active { background: #1e3a8a; color: #93c5fd; }
+    .prog-track {
+      width: 100%;
+      height: 6px;
+      background: #0f172a;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .prog-fill { height: 100%; border-radius: 4px; transition: width 0.35s ease; }
+
+    .auto-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #0f172a;
+      padding: 9px 11px;
+      border-radius: 10px;
+      margin-bottom: 8px;
+      font-size: 0.8rem;
+    }
+    .ctrl-box { background: #0f172a; padding: 9px 11px; border-radius: 10px; }
+    .ctrl-lbl { font-size: 0.74rem; color: var(--muted); display: flex; justify-content: space-between; margin-bottom: 5px; }
+    input[type="range"] { width: 100%; accent-color: var(--accent); }
+    .status-note { font-size: 0.72rem; color: var(--muted); text-align: center; margin-top: 8px; line-height: 1.35; }
+
+    /* Status aktualizacji z sieci */
+    .sync-banner {
+      background: #0f172a;
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      border-radius: 10px;
+      padding: 8px 10px;
+      margin-bottom: 12px;
+      font-size: 0.73rem;
+      color: var(--muted);
+      display: none;
+      line-height: 1.4;
+    }
+    .sync-banner.visible { display: block; }
+
+    /* Zakładka Wykres */
+    .filter-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+    .chip {
+      border: 1px solid var(--border);
+      background: #0f172a;
+      color: var(--muted);
+      font-size: 0.73rem;
+      font-weight: 700;
+      padding: 5px 9px;
+      border-radius: 8px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.15s ease;
+    }
+    .chip.active {
+      color: var(--text);
+      border-color: rgba(255,255,255,0.35);
+      background: var(--card-light);
+    }
+    .chart-box {
+      position: relative;
+      height: 335px;
+      width: 100%;
+    }
+    .legend-guide {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 6px;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border);
+      font-size: 0.74rem;
+      color: var(--muted);
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .sym-line {
+      width: 22px;
+      height: 1.8px;
+      background: var(--text);
+      display: inline-block;
+    }
+    .sym-dash {
+      width: 22px;
+      height: 0;
+      border-top: 1.8px dashed var(--accent);
+      display: inline-block;
+    }
+    .sym-thresh {
+      width: 22px;
+      height: 2.5px;
+      background: #facc15;
+      display: inline-block;
+    }
+    .sym-diamond {
+      width: 10px;
+      height: 10px;
+      background: #fbbf24;
+      transform: rotate(45deg);
+      display: inline-block;
+      margin: 0 6px;
+    }
+    .sym-target {
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+      border: 2.5px solid #ffffff;
+      background: var(--accent);
+      display: inline-block;
+      margin: 0 5px;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div>
+      <h1>Prognoza Sejm 2027</h1>
+      <div class="subtitle" id="dataStatus">Baza: lis.26 → cel: lis.27 (h=12) • AUTO φ=0,80</div>
+    </div>
+    <div class="header-actions">
+      <button class="action-btn secondary" id="syncWebBtn" title="Pobierz bieżące średnie sondaży z agregatorów">
+        🔄 Aktualizuj
+      </button>
+      <label class="action-btn">
+        📂 .xlsx
+        <input type="file" id="xlsxInput" accept=".xlsx,.xls" />
+      </label>
+    </div>
+  </header>
+
+  <div id="syncBanner" class="sync-banner"></div>
+
+  <!-- Przełącznik podstron -->
+  <nav class="tabs">
+    <button class="tab-btn active" data-tab="view-mandates">📊 Mandaty i Wyniki</button>
+    <button class="tab-btn" data-tab="view-chart">📈 Wykres Trendów</button>
+  </nav>
+
+  <!-- PODSTRONA 1: MANDATY I WYNIKI -->
+  <section id="view-mandates" class="tab-view active">
+    <div class="card">
+      <div class="card-title">
+        <span>Podział mandatów (D'Hondt 1,15)</span>
+        <span>Większość: 231</span>
+      </div>
+      <div class="sejm-bar-wrap" id="partySeatsBar">
+        <div class="majority-line" title="Większość 231"></div>
+      </div>
+            <div class="bloc-grid">
+        <div class="bloc-box dem">
+          <div class="bloc-name">DEMOKRATYCZNE</div>
+          <div class="bloc-seats" id="demSeats">0</div>
+          <div class="bloc-sub" id="demSub">0,0% poparcia (0,0% Sejmu)</div>
+        </div>
+        <div class="bloc-box right">
+          <div class="bloc-name">PRAWICA</div>
+          <div class="bloc-seats" id="rightSeats">0</div>
+          <div class="bloc-sub" id="rightSub">0,0% poparcia (0,0% Sejmu)</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <span>Prognoza na listopad 2027</span>
+        <span>Poparcie / Mandaty</span>
+      </div>
+      <div id="partyList"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <span>Parametry modelu (D'Hondt okręgowy 1,15)</span>
+      </div>
+      <label class="auto-toggle">
+        <span><strong>AUTO φ i okno trendu</strong> (wg liczby mies. do 11/2027)</span>
+        <input type="checkbox" id="autoMode" checked style="width:18px; height:18px; accent-color:#14b8a6;" />
+      </label>
+      <div class="ctrl-box">
+        <div class="ctrl-lbl">
+          <span>Współczynnik tłumienia (φ)</span>
+          <strong id="phiVal">0.80</strong>
+        </div>
+        <input type="range" id="phiSlider" min="0.60" max="0.95" step="0.05" value="0.80" disabled />
+      </div>
+      <div class="status-note">Tryb AUTO: h&gt;8 → φ=0,80 • h=5..8 → φ=0,85 • h≤4 → φ=0,75. Ważony trend z ostatnich 4 mies. + miękka kotwica z agregatorów (100% zgodne z XLSX v6).</div>
+    </div>
+  </section>
+
+  <!-- PODSTRONA 2: WYKRES TRENDÓW REGRESJI -->
+  <section id="view-chart" class="tab-view">
+    <div class="card">
+      <div class="card-title">
+        <span>Trajektoria regresji do lis.27</span>
+        <span>Dotknij partię, aby ukryć/pokazać</span>
+      </div>
+
+      <div class="filter-chips" id="partyChips"></div>
+
+      <div class="chart-box">
+        <canvas id="trendChart"></canvas>
+      </div>
+
+      <div class="legend-guide">
+        <div class="legend-item">
+          <span class="sym-thresh"></span>
+          <span><strong>Linia progu 5%:</strong> wyraźna granica wejścia do Sejmu (obszar poniżej 5% we mgle)</span>
+        </div>
+        <div class="legend-item">
+          <span class="sym-line"></span>
+          <span><strong>Linia ciągła:</strong> historyczna krzywa regresji z tabeli</span>
+        </div>
+        <div class="legend-item">
+          <span class="sym-dash"></span>
+          <span><strong>Linia przerywana:</strong> wygaszana projekcja trendu</span>
+        </div>
+        <div class="legend-item">
+          <span class="sym-diamond"></span>
+          <span><strong>Romb (◆):</strong> średnia z 3 agregatorów (ewybory.eu, Atlas Polit., PolitPro)</span>
+        </div>
+        <div class="legend-item">
+          <span class="sym-target"></span>
+          <span><strong>Punkt docelowy (◉):</strong> prognozowany wynik w listopadzie 2027 r.</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+<script>
+  const COLORS = {
+    KO: "#f97316",
+    PIS: "#3b82f6",
+    KONF: "#94a3b8",
+    KPP: "#dc2626",
+    LEWICA: "#f43f5e",
+    RAZEM: "#c084fc",
+    PSL: "#22c55e",
+    "R+": "#06b6d4",
+    PL2050: "#eab308"
+  };
+
+  const TEXT_ON_COLOR = {
+    KO: "#fff7ed",
+    PIS: "#eff6ff",
+    KONF: "#0f172a",
+    KPP: "#fef2f2",
+    LEWICA: "#fff1f2",
+    RAZEM: "#3b0764",
+    PSL: "#052e16",
+    "R+": "#083344",
+    PL2050: "#422006"
+  };
+
+  const MONTHS_25 = [
+    "lis.25", "gru.25", "sty.26", "lut.26", "mar.26", "kwi.26", "maj.26", "cze.26",
+    "lip.26", "sie.26", "wrz.26", "paź.26", "lis.26",
+    "gru.26", "sty.27", "lut.27", "mar.27", "kwi.27", "maj.27", "cze.27",
+    "lip.27", "sie.27", "wrz.27", "paź.27", "lis.27"
+  ];
+
+  // Stały wykładnik D'Hondta dla 41 okręgów (zgodny z XLSX U4 = 1.15)
+  const DHONDT_EXP = 1.15;
+
+  let dataset = [
+    { name: "KO",     bloc: "Demokratyczny", rawSeries: [31.30, 31.30, 31.20, 31.20, 31.20, 31.20, 31.20, 31.20, 31.20, 31.30, 31.30, 31.40, 31.50], ewAvg: 31.60, apAvg: 32.40, ppAvg: 32.60, visible: true },
+    { name: "PIS",    bloc: "Prawica",       rawSeries: [27.40, 27.00, 26.50, 26.00, 25.40, 24.70, 24.00, 23.20, 22.30, 21.40, 20.30, 19.20, 18.00], ewAvg: 20.20, apAvg: 21.90, ppAvg: 22.20, visible: true },
+    { name: "KONF",   bloc: "Prawica",       rawSeries: [13.70, 13.70, 13.60, 13.50, 13.40, 13.30, 13.20, 13.10, 13.00, 12.90, 12.80, 12.70, 12.50], ewAvg: 13.30, apAvg: 14.10, ppAvg: 13.70, visible: true },
+    { name: "KPP",    bloc: "Prawica",       rawSeries: [7.00,  7.40,  7.70,  8.00,  8.20,  8.50,  8.60,  8.70,  8.80,  8.90,  8.90,  8.80,  8.70],  ewAvg: 8.50,  apAvg: 9.10,  ppAvg: 8.50,  visible: true },
+    { name: "LEWICA", bloc: "Demokratyczny", rawSeries: [6.20,  6.10,  6.10,  6.10,  6.10,  6.20,  6.20,  6.30,  6.40,  6.60,  6.80,  7.00,  7.30],  ewAvg: 6.40,  apAvg: 7.30,  ppAvg: 7.30,  visible: true },
+    { name: "R+",     bloc: "Prawica",       rawSeries: [null,  null,  null,  null,  null,  null,  null,  null,  5.40,  5.20,  5.10,  4.90,  4.80],  ewAvg: 4.60,  apAvg: 4.70,  ppAvg: 4.70,  visible: false },
+    { name: "PSL",    bloc: "Demokratyczny", rawSeries: [2.80,  2.80,  2.80,  2.80,  2.80,  2.80,  2.90,  2.90,  2.90,  3.00,  3.10,  3.20,  3.30],  ewAvg: null,  apAvg: 3.00,  ppAvg: 3.50,  visible: false },
+    { name: "RAZEM",  bloc: "Demokratyczny", rawSeries: [3.90,  4.00,  4.10,  4.10,  4.10,  4.10,  4.00,  4.00,  3.90,  3.70,  3.60,  3.40,  3.20],  ewAvg: null,  apAvg: 4.40,  ppAvg: 4.20,  visible: false },
+    { name: "PL2050", bloc: "Demokratyczny", rawSeries: [2.40,  2.20,  2.00,  1.80,  1.70,  1.60,  1.50,  1.40,  1.40,  1.30,  1.30,  1.30,  1.40],  ewAvg: null,  apAvg: 1.70,  ppAvg: 1.70,  visible: false }
+  ];
+
+  let lastMonthIdx = 12; // indeks 12 = lis.26 (0..24)
+  let chartInstance = null;
+
+  function getAutoPhi(h) {
+    if (h > 8) return 0.80;
+    if (h > 4) return 0.85;
+    return 0.75;
+  }
+
+  function getAutoWindow(h) {
+    return h <= 4 ? 2 : 3;
+  }
+
+  // Wtyczka rysująca lekką mgiełkę poniżej progu 5% na wykresie
+  const belowThresholdFogPlugin = {
+    id: "belowThresholdFog",
+    beforeDatasetsDraw(chart) {
+      const { ctx, chartArea, scales } = chart;
+      if (!chartArea || !scales.y) return;
+      const y5 = scales.y.getPixelForValue(5.0);
+      const yBottom = chartArea.bottom;
+      if (yBottom <= y5) return;
+
+      ctx.save();
+      const grad = ctx.createLinearGradient(0, y5, 0, yBottom);
+      grad.addColorStop(0, "rgba(250, 204, 21, 0.13)");
+      grad.addColorStop(0.35, "rgba(148, 163, 184, 0.14)");
+      grad.addColorStop(1, "rgba(15, 23, 42, 0.34)");
+      ctx.fillStyle = grad;
+      ctx.fillRect(chartArea.left, y5, chartArea.right - chartArea.left, yBottom - y5);
+      ctx.restore();
+    }
+  };
+
+  function computeModel() {
+    const isAuto = document.getElementById("autoMode").checked;
+    const slider = document.getElementById("phiSlider");
+    slider.disabled = isAuto;
+
+    const hMain = Math.max(0, 24 - lastMonthIdx);
+    const phi = isAuto ? getAutoPhi(hMain) : parseFloat(slider.value);
+    const win = isAuto ? getAutoWindow(hMain) : 3;
+
+    slider.value = phi.toFixed(2);
+    document.getElementById("phiVal").textContent = phi.toFixed(2);
+
+    const computed = dataset.map(p => {
+      const validPoints = [];
+      p.rawSeries.forEach((v, idx) => {
+        if (typeof v === "number" && !isNaN(v)) validPoints.push({ val: v, idx });
+      });
+
+      const lastObj = validPoints[validPoints.length - 1];
+      const last = lastObj.val;
+      const partyLastIdx = lastObj.idx;
+      const h = Math.max(0, 24 - partyLastIdx);
+
+      // Ważony trend z ostatnich 4 kroków miesięcznych: [0.45, 0.25, 0.18, 0.12] — identycznie jak w XLSX v6
+      const slopeWeights = [0.45, 0.25, 0.18, 0.12];
+      const stepDiffs = [];
+      for (let m = validPoints.length - 1; m >= 1 && stepDiffs.length < 4; m--) {
+        const cur = validPoints[m];
+        const prevPt = validPoints[m - 1];
+        if (cur.idx - prevPt.idx === 1) {
+          stepDiffs.push(cur.val - prevPt.val);
+        }
+      }
+      let weightedTrend = 0;
+      if (stepDiffs.length > 0) {
+        const usedW = slopeWeights.slice(0, stepDiffs.length);
+        const sumW = usedW.reduce((a, b) => a + b, 0);
+        weightedTrend = stepDiffs.reduce((acc, d, i) => acc + d * (usedW[i] / sumW), 0);
+      }
+
+      const srcVals = [p.ewAvg, p.apAvg, p.ppAvg].filter(v => typeof v === "number" && !isNaN(v));
+      const aggAvg = srcVals.length > 0 ? (srcVals.reduce((a, b) => a + b, 0) / srcVals.length) : null;
+      const hasAvg = (typeof aggAvg === "number" && !isNaN(aggAvg));
+      const diffVal = hasAvg ? (aggAvg - last) : 0;
+      const diffAbs = Math.abs(diffVal);
+
+      // Identyczne formuły jak w XLSX v6 (kolumny AL, AM, AE):
+      const wAnchor = hasAvg ? Math.min(0.35, 0.15 + 0.03 * diffAbs) : 0;
+      const startBase = hasAvg ? (last + 0.35 * wAnchor * diffVal) : last;
+      const multH = Math.max(0.01, phi * (1 - Math.pow(phi, Math.max(1, h))) / (1 - phi));
+      const adjTrend = weightedTrend + (hasAvg ? (0.40 * wAnchor * (diffVal / multH)) : 0);
+
+      const histLine = new Array(25).fill(null);
+      const projLine = new Array(25).fill(null);
+      const avgPoint = new Array(25).fill(null);
+      const targetPoint = new Array(25).fill(null);
+
+      for (let i = 0; i <= partyLastIdx; i++) {
+        histLine[i] = p.rawSeries[i];
+      }
+
+      if (hasAvg) {
+        avgPoint[partyLastIdx] = aggAvg;
+      }
+
+      projLine[partyLastIdx] = last;
+      let rawForecast = last;
+      for (let step = 1; step <= h; step++) {
+        const multStep = phi * (1 - Math.pow(phi, step)) / (1 - phi);
+        const valStep = Math.max(0, startBase + adjTrend * multStep);
+        projLine[partyLastIdx + step] = valStep;
+        if (step === h) rawForecast = valStep;
+      }
+
+      const forecast = h > 0 ? rawForecast : last;
+      targetPoint[24] = forecast;
+
+      // Czy partia zbliża się do progu 5% na mniej niż ok. 0,5 p.p. (w prognozie lub dowolnym punkcie trajektorii projekcji)
+      const isNear5 = Math.abs(forecast - 5.0) <= 0.65 || (forecast >= 4.35 && forecast <= 5.50);
+
+      return {
+        ...p,
+        last,
+        partyLastIdx,
+        h,
+        trend: weightedTrend,
+        forecast,
+        isNear5,
+        seats: 0,
+        histLine,
+        projLine,
+        avgPoint,
+        targetPoint
+      };
+    });
+
+    // Podział 460 mandatów metodą D'Hondta (próg 5%, wykładnik 1.15 — bez zaokrąglania pośredniego, 1:1 jak Kalkulator_DHondt w XLSX)
+    let quotients = [];
+    computed.forEach((p, idx) => {
+      if (p.forecast >= 5.0) {
+        const w = Math.pow(p.forecast, DHONDT_EXP);
+        for (let q = 1; q <= 250; q++) {
+          quotients.push({ val: w / q, idx });
+        }
+      }
+    });
+    quotients.sort((a, b) => b.val - a.val);
+    quotients.slice(0, 460).forEach(q => {
+      computed[q.idx].seats += 1;
+    });
+
+    return { computed, hMain, phi, win, isAuto };
+  }
+
+  function renderAll() {
+    const { computed, hMain, phi, win, isAuto } = computeModel();
+    const sorted = [...computed].sort((a, b) => b.forecast - a.forecast);
+
+    const lastLbl = MONTHS_25[lastMonthIdx] || "lis.26";
+    document.getElementById("dataStatus").textContent =
+      `Baza: ${lastLbl} → cel: lis.27 (h=${hMain}) • ${isAuto ? 'AUTO ' : ''}φ=${phi.toFixed(2)}`;
+
+    // Pasek poziomy głównego ekranu z mandatami dla wszystkich partii wchodzących do Sejmu
+    const barEl = document.getElementById("partySeatsBar");
+    barEl.innerHTML = '<div class="majority-line" title="Większość 231"></div>';
+
+    const demParties = sorted.filter(p => p.seats > 0 && p.bloc.toLowerCase().includes("dem"));
+    const rightParties = sorted.filter(p => p.seats > 0 && !p.bloc.toLowerCase().includes("dem"));
+    const barParties = [...demParties, ...rightParties];
+
+    barParties.forEach(p => {
+      const share = (p.seats / 460) * 100;
+      const bg = COLORS[p.name] || "#64748b";
+      const fg = TEXT_ON_COLOR[p.name] || "#ffffff";
+      const seg = document.createElement("div");
+      seg.className = "party-seg";
+      seg.style.width = share + "%";
+      seg.style.background = bg;
+      seg.style.color = fg;
+      seg.title = `${p.name}: ${p.seats} mandatów (${p.forecast.toFixed(2)}%)`;
+
+      if (share >= 4.5) {
+        seg.innerHTML = `<span class="seg-name">${p.name}</span><span class="seg-seats">${p.seats}</span>`;
+      } else if (share >= 2.2) {
+        seg.innerHTML = `<span class="seg-seats">${p.seats}</span>`;
+      }
+      barEl.appendChild(seg);
+    });
+
+    // Sumy bloków w prostokątach poniżej
+    let demSeats = 0, rightSeats = 0, demPct = 0, rightPct = 0;
+    sorted.forEach(p => {
+      if (p.bloc.toLowerCase().includes("dem")) {
+        demSeats += p.seats;
+        demPct += p.forecast;
+      } else {
+        rightSeats += p.seats;
+        rightPct += p.forecast;
+      }
+    });
+
+    const demShare = (demSeats / 460) * 100;
+    const rightShare = (rightSeats / 460) * 100;
+
+    document.getElementById("demSeats").textContent = demSeats;
+    document.getElementById("demSub").textContent = `${demPct.toFixed(1)}% poparcia (${demShare.toFixed(1)}% Sejmu)`;
+    document.getElementById("rightSeats").textContent = rightSeats;
+    document.getElementById("rightSub").textContent = `${rightPct.toFixed(1)}% poparcia (${rightShare.toFixed(1)}% Sejmu)`;
+
+    // Lista partii (bez opisu "STREFA PROGU 4-6%")
+    const listEl = document.getElementById("partyList");
+    listEl.innerHTML = "";
+    const maxPct = Math.max(...sorted.map(p => p.forecast), 35);
+
+    sorted.forEach(p => {
+      const color = COLORS[p.name] || "#94a3b8";
+      const inSejm = p.seats > 0;
+      const barW = Math.min(100, (p.forecast / maxPct) * 100);
+      const diff = p.forecast - p.last;
+      const diffStr = (diff >= 0 ? "+" : "") + diff.toFixed(1);
+
+      const badgeHtml = !inSejm ? '<span class="badge badge-out">&lt;5%</span>' : "";
+
+      const row = document.createElement("div");
+      row.className = "party-row";
+      row.innerHTML = `
+        <div class="party-top">
+          <div class="party-left">
+            <span class="dot" style="background:${color}"></span>
+            <span class="party-name">${p.name}</span>
+            ${badgeHtml}
+          </div>
+          <div class="party-right">
+            <span style="font-size:0.75rem; color:#94a3b8">${diffStr}</span>
+            <span class="pct">${p.forecast.toFixed(2)}%</span>
+            <span class="seats-pill ${inSejm ? 'active' : ''}">${p.seats} m.</span>
+          </div>
+        </div>
+        <div class="prog-track">
+          <div class="prog-fill" style="width:${barW}%; background:${color}"></div>
+        </div>
+      `;
+      listEl.appendChild(row);
+    });
+
+    applyAutoNear5(computed);
+    renderChips(computed);
+    renderChart(computed);
+  }
+
+  let autoNear5Applied = false;
+  function applyAutoNear5(computed) {
+    if (autoNear5Applied) return;
+    computed.forEach(comp => {
+      if (comp.isNear5) {
+        const dsItem = dataset.find(d => d.name === comp.name);
+        if (dsItem) dsItem.visible = true;
+      }
+    });
+    autoNear5Applied = true;
+  }
+
+  function renderChips(computed) {
+    const chipsEl = document.getElementById("partyChips");
+    chipsEl.innerHTML = "";
+    dataset.forEach((p, idx) => {
+      const color = COLORS[p.name] || "#94a3b8";
+      const compItem = computed ? computed.find(c => c.name === p.name) : null;
+      const nearTag = (compItem && compItem.isNear5) ? ' <span style="color:#fbbf24;">≈5%</span>' : '';
+      const btn = document.createElement("button");
+      btn.className = "chip" + (p.visible ? " active" : "");
+      btn.innerHTML = `<span class="dot" style="background:${color}; width:8px; height:8px;"></span>${p.name}${nearTag}`;
+      btn.onclick = () => {
+        dataset[idx].visible = !dataset[idx].visible;
+        renderAll();
+      };
+      chipsEl.appendChild(btn);
+    });
+  }
+
+  function renderChart(computed) {
+    const ctx = document.getElementById("trendChart").getContext("2d");
+    const datasets = [];
+
+    // Wzmocniona linia progu wyborczego 5%
+    datasets.push({
+      label: "Próg wyborczy 5%",
+      data: new Array(25).fill(5.0),
+      borderColor: "#facc15",
+      borderWidth: 2.2,
+      borderDash: [7, 4],
+      pointRadius: 0,
+      fill: false,
+      order: 10
+    });
+
+    computed.forEach(p => {
+      if (!p.visible) return;
+      const color = COLORS[p.name] || "#94a3b8";
+
+      datasets.push({
+        label: `${p.name} (regresja)`,
+        data: p.histLine,
+        borderColor: color,
+        backgroundColor: color,
+        borderWidth: 1.7,
+        pointRadius: 1.5,
+        pointHoverRadius: 4.5,
+        tension: 0.25,
+        order: 3
+      });
+
+      datasets.push({
+        label: `${p.name} (projekcja)`,
+        data: p.projLine,
+        borderColor: color,
+        backgroundColor: color,
+        borderWidth: 1.6,
+        borderDash: [5, 4],
+        pointRadius: 0,
+        pointHoverRadius: 4.5,
+        tension: 0.25,
+        order: 4
+      });
+
+      if (p.avgPoint[p.partyLastIdx] !== null) {
+        datasets.push({
+          label: `${p.name} (śr. agregatorów)`,
+          data: p.avgPoint,
+          borderColor: "#ffffff",
+          backgroundColor: color,
+          borderWidth: 0.9,
+          pointStyle: "rectRot",
+          pointRadius: 4.5,
+          pointHoverRadius: 6.5,
+          showLine: false,
+          order: 2
+        });
+      }
+
+      datasets.push({
+        label: `${p.name} → lis.27 (${p.forecast.toFixed(1)}%)`,
+        data: p.targetPoint,
+        borderColor: "#ffffff",
+        backgroundColor: color,
+        borderWidth: 2,
+        pointStyle: "circle",
+        pointRadius: 4.5,
+        pointHoverRadius: 6.5,
+        showLine: false,
+        order: 1
+      });
+    });
+
+    if (chartInstance) {
+      chartInstance.destroy();
+    }
+
+    chartInstance = new Chart(ctx, {
+      type: "line",
+      data: {
+        labels: MONTHS_25,
+        datasets: datasets
+      },
+      plugins: [belowThresholdFogPlugin],
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: {
+          mode: "index",
+          intersect: false
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: "rgba(15, 23, 42, 0.95)",
+            titleColor: "#f8fafc",
+            bodyColor: "#e2e8f0",
+            borderColor: "rgba(148, 163, 184, 0.3)",
+            borderWidth: 1,
+            filter: function(item) {
+              if (item.dataset.label.includes("(projekcja)") && item.dataIndex === lastMonthIdx) return false;
+              if (item.dataset.label === "Próg wyborczy 5%") return false;
+              return item.parsed.y !== null;
+            },
+            callbacks: {
+              label: function(ctx) {
+                return ` ${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2)}%`;
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            ticks: {
+              color: "#94a3b8",
+              font: { size: 10 },
+              maxRotation: 45,
+              autoSkip: true,
+              maxTicksLimit: 9
+            },
+            grid: { color: "rgba(148, 163, 184, 0.08)" }
+          },
+          y: {
+            beginAtZero: true,
+            suggestedMax: 36,
+            ticks: {
+              color: "#94a3b8",
+              font: { size: 10 },
+              callback: v => v + "%"
+            },
+            grid: { color: "rgba(148, 163, 184, 0.12)" }
+          }
+        }
+      }
+    });
+  }
+
+  const STORAGE_KEY = "prognoza_sejm_2027_state_v11";
+
+  function saveCurrentState() {
+    try {
+      const stateObj = {
+        dataset: dataset,
+        lastMonthIdx: lastMonthIdx,
+        autoMode: document.getElementById("autoMode").checked,
+        phiSlider: parseFloat(document.getElementById("phiSlider").value)
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(stateObj));
+    } catch (e) { /* brak dostępu do localStorage */ }
+  }
+
+  function loadSavedState() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return false;
+      const st = JSON.parse(raw);
+      if (st && Array.isArray(st.dataset) && st.dataset.length > 0) {
+        dataset = st.dataset;
+        if (typeof st.lastMonthIdx === "number") lastMonthIdx = st.lastMonthIdx;
+        if (typeof st.autoMode === "boolean") document.getElementById("autoMode").checked = st.autoMode;
+        if (typeof st.phiSlider === "number") document.getElementById("phiSlider").value = st.phiSlider;
+        return true;
+      }
+    } catch (e) { /* uszkodzony stan */ }
+    return false;
+  }
+
+  // Wpinamy zapis stanu na końcu renderAll()
+  const _origRenderAll = renderAll;
+  renderAll = function() {
+    _origRenderAll();
+    saveCurrentState();
+  };
+
+  // Pobieranie aktualnych średnich miesięcznych ze stron (Jina Reader / CodeTabs / AllOrigins / bezpośredni fetch)
+  async function fetchTextSmart(targetUrl) {
+    const cleanNoProto = targetUrl.replace(/^https?:\/\//, "");
+    const endpoints = [
+      { url: `https://r.jina.ai/http://${cleanNoProto}`, jsonWrap: false },
+      { url: `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`, jsonWrap: false },
+      { url: `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`, jsonWrap: true },
+      { url: targetUrl, jsonWrap: false }
+    ];
+
+    for (const ep of endpoints) {
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 9000);
+        const resp = await fetch(ep.url, { cache: "no-store", signal: controller.signal });
+        clearTimeout(timer);
+        if (!resp.ok) continue;
+        if (ep.jsonWrap) {
+          const data = await resp.json();
+          if (data && data.contents && data.contents.length > 150) return data.contents;
+        } else {
+          const txt = await resp.text();
+          if (txt && txt.length > 150) return txt;
+        }
+      } catch (e) { /* spróbuj kolejnej bramki */ }
+    }
+    return null;
+  }
+
+  function extractPartyPercentages(rawContent, patternsMap) {
+    let cleanText = rawContent;
+    if (rawContent.includes("<html") || rawContent.includes("<body") || rawContent.includes("<div")) {
+      const doc = new DOMParser().parseFromString(rawContent, "text/html");
+      cleanText = doc.body ? doc.body.innerText : rawContent;
+    }
+    cleanText = cleanText.replace(/\s+/g, " ");
+    const found = {};
+    for (const [partyCode, regexList] of Object.entries(patternsMap)) {
+      for (const rx of regexList) {
+        const m = cleanText.match(rx);
+        if (m && m[1]) {
+          const val = parseFloat(m[1].replace(",", "."));
+          if (!isNaN(val) && val > 0.2 && val < 60) {
+            found[partyCode] = val;
+            break;
+          }
+        }
+      }
+    }
+    return found;
+  }
+
+  function openReviewChangesPanel(bannerEl, proposedValues, headerMessage) {
+    // Tworzymy kopię roboczą (staging) proponowanych wartości
+    const keys = ["ewAvg", "apAvg", "ppAvg"];
+
+    function countChanges() {
+      let changed = 0;
+      dataset.forEach((p, idx) => {
+        keys.forEach(k => {
+          const oldV = (typeof p[k] === "number" && !isNaN(p[k])) ? p[k] : null;
+          const newV = (typeof proposedValues[idx][k] === "number" && !isNaN(proposedValues[idx][k])) ? proposedValues[idx][k] : null;
+          if (oldV !== newV) changed++;
+        });
+      });
+      return changed;
+    }
+
+    function renderDiffTable() {
+      const changedCount = countChanges();
+      const rowsHtml = dataset.map((p, idx) => {
+        const cellsHtml = keys.map(k => {
+          const oldV = (typeof p[k] === "number" && !isNaN(p[k])) ? p[k] : null;
+          const newV = (typeof proposedValues[idx][k] === "number" && !isNaN(proposedValues[idx][k])) ? proposedValues[idx][k] : null;
+          const isChanged = oldV !== newV;
+
+          const borderStyle = isChanged
+            ? "2px solid #fbbf24; background: rgba(251, 191, 36, 0.16); color: #fef08a; font-weight: 800;"
+            : "1px solid rgba(148, 163, 184, 0.25); background: #1e293b; color: #cbd5e1; font-weight: 500;";
+
+          const diffHint = isChanged
+            ? `<div style="font-size:0.62rem; color:#fbbf24; margin-top:2px; white-space:nowrap;">${oldV !== null ? oldV.toFixed(1) : 'brak'} → <strong>${newV !== null ? newV.toFixed(1) : 'brak'}</strong></div>`
+            : `<div style="font-size:0.60rem; color:#64748b; margin-top:2px;">bez zmian</div>`;
+
+          return `
+            <div>
+              <input type="number" step="0.1" data-idx="${idx}" data-key="${k}" value="${newV ?? ''}" placeholder="—"
+                style="width:100%; border:${borderStyle}; border-radius:6px; padding:4px 5px; font-size:0.75rem;" />
+              ${diffHint}
+            </div>
+          `;
+        }).join("");
+
+        const rowChanged = keys.some(k => {
+          const oldV = (typeof p[k] === "number" && !isNaN(p[k])) ? p[k] : null;
+          const newV = (typeof proposedValues[idx][k] === "number" && !isNaN(proposedValues[idx][k])) ? proposedValues[idx][k] : null;
+          return oldV !== newV;
+        });
+
+        return `
+          <div style="display:grid; grid-template-columns: 64px 1fr 1fr 1fr; gap:5px; align-items:start; margin-top:6px; padding:4px; border-radius:7px; ${rowChanged ? 'background: rgba(251, 191, 36, 0.07);' : ''}">
+            <div style="padding-top:4px;">
+              <strong style="font-size:0.74rem; color:${rowChanged ? '#fbbf24' : '#f8fafc'};">${p.name}</strong>
+              ${rowChanged ? '<div style="font-size:0.58rem; color:#fbbf24; font-weight:700;">ZMIANA</div>' : ''}
+            </div>
+            ${cellsHtml}
+          </div>
+        `;
+      }).join("");
+
+      bannerEl.innerHTML = `
+        <div>${headerMessage}</div>
+        <div style="margin-top:6px; font-size:0.72rem; color:#e2e8f0;">
+          Wykryto różnic względem zapisanego stanu: <strong style="color:${changedCount > 0 ? '#fbbf24' : '#94a3b8'};">${changedCount}</strong>
+          (wyróżnione <span style="color:#fbbf24; font-weight:700;">żółtą ramką</span>).
+        </div>
+        <div style="margin-top:8px; padding-top:8px; border-top:1px solid rgba(148,163,184,0.2);">
+          <div style="display:grid; grid-template-columns: 64px 1fr 1fr 1fr; gap:5px; font-size:0.68rem; color:#94a3b8; font-weight:700;">
+            <span>Partia</span><span>ewybory.eu</span><span>Atlas Polit.</span><span>PolitPro</span>
+          </div>
+          ${rowsHtml}
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:10px;">
+            <button id="acceptAggChangesBtn" style="background:#14b8a6; color:#042f2e; font-weight:800; border:none; border-radius:8px; padding:8px; font-size:0.76rem; cursor:pointer;">
+              ✅ Akceptuj zmiany
+            </button>
+            <button id="rejectAggChangesBtn" style="background:#334155; color:#f8fafc; font-weight:700; border:1px solid rgba(148,163,184,0.35); border-radius:8px; padding:8px; font-size:0.76rem; cursor:pointer;">
+              ✖️ Odrzuć zmiany
+            </button>
+          </div>
+        </div>
+      `;
+
+      // Aktualizacja wyróżnienia na żywo przy ręcznej zmianie w polu
+      bannerEl.querySelectorAll("input[data-idx]").forEach(inp => {
+        inp.addEventListener("change", () => {
+          const i = parseInt(inp.dataset.idx, 10);
+          const k = inp.dataset.key;
+          const v = parseFloat(inp.value);
+          proposedValues[i][k] = (!isNaN(v) && v > 0) ? parseFloat(v.toFixed(2)) : null;
+          renderDiffTable();
+        });
+      });
+
+      document.getElementById("acceptAggChangesBtn").onclick = () => {
+        bannerEl.querySelectorAll("input[data-idx]").forEach(inp => {
+          const i = parseInt(inp.dataset.idx, 10);
+          const k = inp.dataset.key;
+          const v = parseFloat(inp.value);
+          dataset[i][k] = (!isNaN(v) && v > 0) ? parseFloat(v.toFixed(2)) : null;
+        });
+        renderAll();
+        const nowStr = new Date().toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" });
+        bannerEl.innerHTML = `✅ Zaakceptowano i zapamiętano zmiany (${nowStr}). Wykresy i mandaty zostały przeliczone.`;
+      };
+
+      document.getElementById("rejectAggChangesBtn").onclick = () => {
+        bannerEl.innerHTML = `✖️ Odrzucono pobrane zmiany — zachowano dotychczasowy zapisany stan.`;
+      };
+    }
+
+    renderDiffTable();
+  }
+
+  async function syncAggregatorsFromWeb() {
+    const btn = document.getElementById("syncWebBtn");
+    const banner = document.getElementById("syncBanner");
+    btn.disabled = true;
+    btn.textContent = "⏳ Pobieranie...";
+    banner.classList.add("visible");
+    banner.innerHTML = "Pobieranie danych ze stron: <strong>ewybory.eu</strong>, <strong>Atlas Polityczny</strong>, <strong>PolitPro</strong>...";
+
+    const partyPatterns = {
+      KO:     [/Koalicja Obywatelska[^0-9]{0,45}(\d{1,2}[.,]\d{1,2})\s*%/i, /\bKO\b[^0-9]{0,30}(\d{1,2}[.,]\d{1,2})\s*%/i],
+      PIS:    [/Prawo i Sprawiedliwość[^0-9]{0,45}(\d{1,2}[.,]\d{1,2})\s*%/i, /\bPiS\b[^0-9]{0,30}(\d{1,2}[.,]\d{1,2})\s*%/i],
+      KONF:   [/Konfederacja(?!\s+Korony)[^0-9]{0,45}(\d{1,2}[.,]\d{1,2})\s*%/i],
+      KPP:    [/Konfederacja Korony Polskiej[^0-9]{0,45}(\d{1,2}[.,]\d{1,2})\s*%/i, /\bKKP\b[^0-9]{0,30}(\d{1,2}[.,]\d{1,2})\s*%/i],
+      LEWICA: [/Nowa Lewica[^0-9]{0,45}(\d{1,2}[.,]\d{1,2})\s*%/i, /\bLewica\b[^0-9]{0,30}(\d{1,2}[.,]\d{1,2})\s*%/i],
+      "R+":   [/Rozwój Plus[^0-9]{0,45}(\d{1,2}[.,]\d{1,2})\s*%/i, /\bR\+\b[^0-9]{0,30}(\d{1,2}[.,]\d{1,2})\s*%/i],
+      PSL:    [/Polskie Stronnictwo Ludowe[^0-9]{0,45}(\d{1,2}[.,]\d{1,2})\s*%/i, /\bPSL\b[^0-9]{0,30}(\d{1,2}[.,]\d{1,2})\s*%/i],
+      RAZEM:  [/Partia Razem[^0-9]{0,45}(\d{1,2}[.,]\d{1,2})\s*%/i, /\bRazem\b[^0-9]{0,30}(\d{1,2}[.,]\d{1,2})\s*%/i],
+      PL2050: [/Polska 2050[^0-9]{0,45}(\d{1,2}[.,]\d{1,2})\s*%/i]
+    };
+
+    const sources = [
+      { key: "ewAvg", name: "ewybory.eu",        url: "https://ewybory.eu/sondaze/polska/" },
+      { key: "apAvg", name: "Atlas Polityczny",  url: "https://atlaspolityczny.pl/sondaze/partie" },
+      { key: "ppAvg", name: "PolitPro",          url: "https://politpro.eu/pl/polska/wybory-parlamentarne" }
+    ];
+
+    // Kopia bieżącego stanu jako baza propozycji (zmieniamy tylko odczytane pola)
+    const proposed = dataset.map(p => ({
+      ewAvg: p.ewAvg,
+      apAvg: p.apAvg,
+      ppAvg: p.ppAvg
+    }));
+
+    let updatedSources = [];
+    let failedSources = [];
+    // Dane z własnego pliku data.json (odświeżanego przez GitHub Actions) mają pierwszeństwo przed bramkami proxy
+    let local = null;
+    try { const r = await fetch("data.json?t=" + Date.now(), { cache: "no-store" }); if (r.ok) local = await r.json(); } catch (e) { /* brak pliku */ }
+
+    for (const src of sources) {
+      const ls = local && local.sources && local.sources[src.key];
+      if (ls && Object.keys(ls).length >= 3) {
+        dataset.forEach((p, idx) => { if (typeof ls[p.name] === "number") proposed[idx][src.key] = ls[p.name]; });
+        updatedSources.push(`${src.name} (${Object.keys(ls).length} partii, stan z ${String(local.updated || "").slice(0, 16).replace("T", " ")} UTC)`);
+        continue;
+      }
+      const content = await fetchTextSmart(src.url);
+      if (!content) {
+        failedSources.push(src.name);
+        continue;
+      }
+      const parsed = extractPartyPercentages(content, partyPatterns);
+      const count = Object.keys(parsed).length;
+      if (count >= 3) {
+        dataset.forEach((p, idx) => {
+          if (typeof parsed[p.name] === "number") {
+            proposed[idx][src.key] = parseFloat(parsed[p.name].toFixed(2));
+          }
+        });
+        updatedSources.push(`${src.name} (${count} partii)`);
+      } else {
+        failedSources.push(src.name);
+      }
+    }
+
+    btn.disabled = false;
+    btn.textContent = "🔄 Aktualizuj";
+
+    let headerMsg = "";
+    if (updatedSources.length > 0) {
+      headerMsg = `📡 Odczytano dane ze źródeł: <strong>${updatedSources.join(", ")}</strong>.` +
+        (failedSources.length > 0 ? ` Brak odpowiedzi z: ${failedSources.join(", ")}.` : "");
+    } else {
+      headerMsg = `⚠️ Brak połączenia z zewnętrznymi serwerami w tym środowisku. Poniżej możesz porównać i zmienić wartości ręcznie:`;
+    }
+
+    openReviewChangesPanel(banner, proposed, headerMsg);
+  }
+
+  document.getElementById("syncWebBtn").addEventListener("click", syncAggregatorsFromWeb);
+
+  // Nawigacja zakładek
+  document.querySelectorAll(".tab-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+      document.querySelectorAll(".tab-view").forEach(v => v.classList.remove("active"));
+      btn.classList.add("active");
+      document.getElementById(btn.dataset.tab).classList.add("active");
+      if (btn.dataset.tab === "view-chart") {
+        renderAll();
+      }
+    });
+  });
+
+  // Wczytywanie pliku Excel (.xlsx)
+  document.getElementById("xlsxInput").addEventListener("change", function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(evt) {
+      try {
+        const data = new Uint8Array(evt.target.result);
+        const wb = XLSX.read(data, { type: "array" });
+        const ws = wb.Sheets["Prognoza_2027"] || wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
+
+        if (rows[3]) {
+          const dVal = rows[3][3]; // D4
+          if (typeof dVal === "number") {
+            if (dVal === 1) {
+              document.getElementById("autoMode").checked = true;
+            } else {
+              document.getElementById("autoMode").checked = false;
+              document.getElementById("phiSlider").value = dVal;
+            }
+          }
+        }
+
+        const prevVis = {};
+        dataset.forEach(p => { prevVis[p.name] = p.visible; });
+
+        const parsed = [];
+        let maxCol = 2;
+
+        for (let r = 7; r <= 15; r++) {
+          const row = rows[r];
+          if (!row || !row[0]) continue;
+          const name = String(row[0]).trim();
+          const bloc = String(row[1] || "Prawica").trim();
+
+          const rawSeries = new Array(25).fill(null);
+          let hasAny = false;
+          for (let c = 2; c <= 26; c++) {
+            if (typeof row[c] === "number" && !isNaN(row[c])) {
+              rawSeries[c - 2] = row[c];
+              hasAny = true;
+              if (c > maxCol) maxCol = c;
+            }
+          }
+
+          const ewVal = (typeof row[28] === "number" && !isNaN(row[28])) ? row[28] : null; // AC
+          const apVal = (typeof row[33] === "number" && !isNaN(row[33])) ? row[33] : null; // AH
+          const ppVal = (typeof row[34] === "number" && !isNaN(row[34])) ? row[34] : null; // AI
+          if (hasAny) {
+            parsed.push({
+              name,
+              bloc,
+              rawSeries,
+              ewAvg: ewVal, apAvg: apVal, ppAvg: ppVal,
+              visible: prevVis.hasOwnProperty(name) ? prevVis[name] : true
+            });
+          }
+        }
+
+        if (parsed.length > 0) {
+          dataset = parsed;
+          lastMonthIdx = maxCol - 2;
+          autoNear5Applied = false;
+          renderAll();
+        }
+      } catch (err) {
+        alert("Nie udało się odczytać pliku Excel. Sprawdź, czy wybierasz plik Prognoza_Poparcia_Listopad_2027-v6-spojny.xlsx");
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  });
+
+  document.getElementById("autoMode").addEventListener("change", renderAll);
+  document.getElementById("phiSlider").addEventListener("input", renderAll);
+
+  // Przy starcie wczytaj zapamiętany stan z localStorage (jeśli istnieje)
+  loadSavedState();
+  renderAll();
+</script>
+</body>
+</html>

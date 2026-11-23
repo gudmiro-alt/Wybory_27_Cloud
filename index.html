@@ -365,6 +365,7 @@
       <button class="action-btn secondary" id="syncWebBtn" title="Pobierz bieżące średnie sondaży z agregatorów">
         🔄 Aktualizuj
       </button>
+      <button class="action-btn secondary" id="closeBtn" title="Zamknij aplikację">✕</button>
       <label class="action-btn">
         📂 .xlsx
         <input type="file" id="xlsxInput" accept=".xlsx,.xls" />
@@ -1209,6 +1210,15 @@
   }
 
   document.getElementById("syncWebBtn").addEventListener("click", syncAggregatorsFromWeb);
+
+  // Zamknięcie aplikacji: window.close() działa w zainstalowanej aplikacji; w zwykłej karcie przeglądarka może je zablokować
+  document.getElementById("closeBtn").addEventListener("click", () => {
+    window.close();
+    setTimeout(() => {
+      if (history.length > 1) { history.back(); }
+      else { alert("Nie można zamknąć automatycznie. Użyj gestu lub przycisku „Wstecz” w telefonie."); }
+    }, 400);
+  });
 
   // Nawigacja zakładek
   document.querySelectorAll(".tab-btn").forEach(btn => {

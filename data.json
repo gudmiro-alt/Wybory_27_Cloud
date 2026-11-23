@@ -1,0 +1,43 @@
+{
+ "updated": "2026-11-23T21:31:41Z",
+ "sources": {
+  "ewAvg": {
+   "RAZEM": 4.01,
+   "LEWICA": 6.8,
+   "KO": 31.05,
+   "PL2050": 1.46,
+   "PSL": 3.31,
+   "R+": 4.68,
+   "PIS": 20.05,
+   "KONF": 13.25,
+   "KPP": 8.44
+  },
+  "apAvg": {
+   "KO": 31.9,
+   "PIS": 22.3,
+   "KONF": 14.2,
+   "KPP": 8.7,
+   "LEWICA": 7.6,
+   "R+": 4.6,
+   "RAZEM": 4.3,
+   "PSL": 3.4,
+   "PL2050": 1.7
+  },
+  "ppAvg": {
+   "KO": 32.6,
+   "PIS": 22.2,
+   "KONF": 13.7,
+   "KPP": 8.5,
+   "LEWICA": 7.3,
+   "R+": 4.7,
+   "RAZEM": 4.2,
+   "PSL": 3.5,
+   "PL2050": 1.7
+  }
+ },
+ "info": {
+  "ewAvg": "średnia prosta z sondaży z ostatnich 30 dni (obliczona z tabeli ewybory.eu)",
+  "apAvg": "średnia Atlasu Politycznego",
+  "ppAvg": "Trend wyborczy PolitPro"
+ }
+}

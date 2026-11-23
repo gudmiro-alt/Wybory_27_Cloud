@@ -9,7 +9,6 @@
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="theme-color" content="#0f172a" />
   <title>Prognoza Sejm 2027</title>
-  <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
   <style>
     :root {
@@ -358,7 +357,7 @@
 
   <header>
     <div>
-      <h1>Prognoza Sejm 2027</h1>
+      <h1>Scenariusz Sejm 2027</h1>
       <div class="subtitle" id="dataStatus">Baza: lis.26 → cel: lis.27 (h=12) • AUTO φ=0,80</div>
     </div>
     <div class="header-actions">
@@ -366,10 +365,7 @@
         🔄 Aktualizuj
       </button>
       <button class="action-btn secondary" id="closeBtn" title="Zamknij aplikację">✕</button>
-      <label class="action-btn">
-        📂 .xlsx
-        <input type="file" id="xlsxInput" accept=".xlsx,.xls" />
-      </label>
+      <button class="action-btn" id="regBtn" title="Wpisz wartości regresji ewybory.eu">➕ Regresja</button>
     </div>
   </header>
 
@@ -385,7 +381,7 @@
   <section id="view-mandates" class="tab-view active">
     <div class="card">
       <div class="card-title">
-        <span>Podział mandatów (D'Hondt 1,15)</span>
+        <span>Mandaty (D'Hondt w 41 okręgach)</span>
         <span>Większość: 231</span>
       </div>
       <div class="sejm-bar-wrap" id="partySeatsBar">
@@ -415,7 +411,7 @@
 
     <div class="card">
       <div class="card-title">
-        <span>Parametry modelu (D'Hondt okręgowy 1,15)</span>
+        <span>Parametry modelu (okręgi + symulacja)</span>
       </div>
       <label class="auto-toggle">
         <span><strong>AUTO φ i okno trendu</strong> (wg liczby mies. do 11/2027)</span>
@@ -521,6 +517,72 @@
   let lastMonthIdx = 12; // indeks 12 = lis.26 (0..24)
   let chartInstance = null;
 
+
+  // ===== Mandaty: D'Hondt w 41 okręgach (liczba mandatów wg podziału z 2023 r.; profile regionalne wg symulacji okręgowej ewybory.eu) =====
+  const OTHER_PCT = 1.6; // inne komitety (PolitPro); próg 5% liczony od głosów ważnych
+  const P_ORDER = ["KO", "PIS", "KONF", "KPP", "LEWICA", "R+", "RAZEM", "PSL", "PL2050"];
+  const DIST_M = [12,8,14,12,13,15,12,12,10,9,12,8,14,10,9,10,9,12,20,12,12,11,15,14,12,14,9,7,9,9,12,9,16,8,10,12,9,9,10,8,12];
+  const DIST_P = [[35,20,13,8,6,5,3,3,1],[38,19,12,13,6,4,3,3,1],[38,15,12,6,8,3,6,2,2],[36,17,13,7,7,4,3,3,2],[30,19,14,7,7,4,3,4,1],[21,26,15,11,4,6,3,3,1],[18,29,15,14,4,7,2,4,1],[39,16,13,8,6,4,3,4,1],[42,15,9,6,9,3,5,2,1],[22,27,14,10,5,6,3,4,1],[27,24,13,8,6,5,3,4,1],[25,24,16,9,5,6,3,3,1],[32,18,12,7,8,4,7,3,2],[16,31,16,11,2,7,2,3,1],[17,28,16,10,4,6,3,5,1],[23,25,14,9,5,6,3,5,1],[21,28,15,10,5,6,3,4,1],[19,28,16,11,4,6,3,4,1],[44,11,8,5,11,3,7,2,2],[36,18,12,7,7,4,4,3,2],[34,18,14,9,5,4,3,4,2],[16,31,15,12,3,7,2,3,1],[18,29,16,12,3,7,3,3,1],[21,24,15,10,4,6,3,3,2],[43,14,12,6,8,3,6,2,2],[39,17,14,8,7,4,4,3,2],[29,21,15,8,5,5,3,3,2],[30,21,13,9,6,5,3,3,1],[37,17,13,7,7,4,4,2,2],[31,22,16,8,5,5,3,2,2],[38,18,12,6,7,4,5,2,2],[31,17,11,7,8,4,4,2,1],[21,27,13,11,5,6,3,4,1],[33,20,14,8,6,5,3,4,1],[34,18,14,8,7,4,3,5,1],[29,20,15,9,6,5,3,5,2],[25,22,14,8,7,5,3,4,2],[36,17,14,8,7,4,3,5,2],[45,11,10,5,10,3,7,2,2],[40,18,12,8,7,4,3,3,1],[41,16,11,7,7,4,4,3,1]];
+  const NAT_W = P_ORDER.map((_, j) => DIST_M.reduce((a, m, d) => a + m * DIST_P[d][j], 0) / 460);
+
+  // f[i] – krajowe poparcie partii (skala sumy punktów startowych), names[i] – kody partii
+  function allocateSeats(f, names) {
+    const tot = f.reduce((a, x) => a + x, 0) || 1;
+    const seats = new Array(f.length).fill(0);
+    const idxP = names.map(n => P_ORDER.indexOf(n));
+    const ok = f.map((x, i) => idxP[i] >= 0 && x / tot * (100 - OTHER_PCT) >= 5.0);
+    for (let d = 0; d < 41; d++) {
+      const q = [];
+      f.forEach((x, i) => {
+        if (!ok[i]) return;
+        const v = x * DIST_P[d][idxP[i]] / NAT_W[idxP[i]];
+        for (let k = 1; k <= DIST_M[d]; k++) q.push([v / k, i]);
+      });
+      q.sort((a, b) => b[0] - a[0]);
+      for (let k = 0; k < DIST_M[d] && k < q.length; k++) seats[q[k][1]]++;
+    }
+    return seats;
+  }
+
+  // ===== Symulacja niepewności (Monte Carlo) =====
+  function gauss() { let u = 0, v = 0; while (!u) u = Math.random(); v = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+  function pct(arr, q) { const a = [...arr].sort((x, y) => x - y); return a[Math.min(a.length - 1, Math.floor(q * a.length))]; }
+
+  function runMC(computed, N) {
+    const n = computed.length, names = computed.map(p => p.name);
+    const T = computed.reduce((a, p) => a + p.forecast, 0);
+    // odchylenie rośnie z udziałem partii (~√p) i z horyzontem; stały składnik 0,6 pp
+    const sig = computed.map(p => { const b = 0.45 * Math.sqrt(p.forecast) * Math.sqrt(0.5 + 0.5 * p.h / 12); return Math.sqrt(b * b + 0.36); });
+    const sv = sig.reduce((a, x) => a + x * x, 0);
+    const sh = computed.map(() => []), st = computed.map(() => []);
+    const enter = new Array(n).fill(0); let majD = 0, majR = 0;
+    for (let s = 0; s < N; s++) {
+      const e = sig.map(x => x * gauss()); const se = e.reduce((a, x) => a + x, 0);
+      let f = computed.map((p, i) => Math.max(0, p.forecast + e[i] - sig[i] * sig[i] / sv * se));
+      const F = f.reduce((a, x) => a + x, 0); f = f.map(x => x * T / F);
+      const seats = allocateSeats(f, names);
+      let d = 0, r = 0;
+      computed.forEach((p, i) => { sh[i].push(f[i] / T * (100 - OTHER_PCT)); st[i].push(seats[i]); if (seats[i] > 0) enter[i]++; if (p.bloc === "Demokratyczny") d += seats[i]; else r += seats[i]; });
+      if (d >= 231) majD++; if (r >= 231) majR++;
+    }
+    return { sh, st, enter, majD: majD / N, majR: majR / N, N };
+  }
+
+  let mcTimer = null;
+  function scheduleMC() {
+    clearTimeout(mcTimer);
+    mcTimer = setTimeout(() => {
+      const { computed } = computeModel();
+      const mc = runMC(computed, 3000);
+      let box = document.getElementById("mcBox");
+      if (!box) { box = document.createElement("div"); box.id = "mcBox"; box.style.cssText = "margin-top:14px;background:var(--card);border-radius:14px;padding:12px;font-size:.78rem"; document.getElementById("view-chart").appendChild(box); }
+      const f1 = x => x.toFixed(1).replace(".", ",");
+      const rows = computed.map((p, i) => `<div style="display:grid;grid-template-columns:62px 1fr 52px 1fr;gap:4px;padding:3px 0;border-top:1px solid var(--border)"><b>${p.name}</b><span>${f1(pct(mc.sh[i], .1))}–${f1(pct(mc.sh[i], .9))}%</span><span>${Math.round(mc.enter[i] / mc.N * 100)}%</span><span>${pct(mc.st[i], .1)}–${pct(mc.st[i], .9)} (med. ${pct(mc.st[i], .5)})</span></div>`).join("");
+      const warns = computed.filter(p => p.aggAvg != null && Math.abs(p.aggAvg - p.last) > 2).map(p => `⚠ ${p.name}: regresja ${f1(p.last)}% vs średnia agregatorów ${f1(p.aggAvg)}% (różnica ${f1(Math.abs(p.aggAvg - p.last))} pp)`).join("<br>");
+      box.innerHTML = `<div style="font-weight:700;margin-bottom:4px">Scenariusz, nie prognoza (${mc.N} symulacji)</div><div style="color:var(--muted);margin-bottom:6px">Przedziały 80%: udział w głosach ważnych, szansa wejścia do Sejmu (próg 5%) i mandaty. Niepewność rośnie z horyzontem.</div><div style="display:grid;grid-template-columns:62px 1fr 52px 1fr;gap:4px;color:var(--muted)"><span>Partia</span><span>Poparcie</span><span>Próg</span><span>Mandaty</span></div>${rows}<div style="margin-top:8px">Większość 231 mandatów: Partie Demokratyczne <b>${Math.round(mc.majD * 100)}%</b>, Partie Prawicy <b>${Math.round(mc.majR * 100)}%</b></div>${warns ? `<div style="margin-top:6px;color:var(--warn)">${warns}</div>` : ""}`;
+    }, 250);
+  }
+
   function getAutoPhi(h) {
     if (h > 8) return 0.80;
     if (h > 4) return 0.85;
@@ -599,10 +661,12 @@
       const diffAbs = Math.abs(diffVal);
 
       // Identyczne formuły jak w XLSX v6 (kolumny AL, AM, AE):
-      const wAnchor = hasAvg ? Math.min(0.35, 0.15 + 0.03 * diffAbs) : 0;
-      const startBase = hasAvg ? (last + 0.35 * wAnchor * diffVal) : last;
+      const wAnchor = hasAvg ? Math.min(0.6, 0.15 + 0.07 * diffAbs) : 0;
+      const startBase = hasAvg ? (last + wAnchor * diffVal) : last;
       const multH = Math.max(0.01, phi * (1 - Math.pow(phi, Math.max(1, h))) / (1 - phi));
-      const adjTrend = weightedTrend + (hasAvg ? (0.40 * wAnchor * (diffVal / multH)) : 0);
+      // Gdy średnie agregatorów są po przeciwnej stronie niż trend regresji, trend jest osłabiany proporcjonalnie do wagi kotwicy
+      const opposed = hasAvg && diffVal * weightedTrend < 0;
+      const adjTrend = weightedTrend * (opposed ? (1 - wAnchor) : 1);
 
       const histLine = new Array(25).fill(null);
       const projLine = new Array(25).fill(null);
@@ -640,6 +704,8 @@
         trend: weightedTrend,
         forecast,
         isNear5,
+        startBase: hasAvg ? (last + wAnchor * diffVal) : last,
+        aggAvg: hasAvg ? aggAvg : null,
         seats: 0,
         histLine,
         projLine,
@@ -648,20 +714,20 @@
       };
     });
 
-    // Podział 460 mandatów metodą D'Hondta (próg 5%, wykładnik 1.15 — bez zaokrąglania pośredniego, 1:1 jak Kalkulator_DHondt w XLSX)
-    let quotients = [];
-    computed.forEach((p, idx) => {
-      if (p.forecast >= 5.0) {
-        const w = Math.pow(p.forecast, DHONDT_EXP);
-        for (let q = 1; q <= 250; q++) {
-          quotients.push({ val: w / q, idx });
-        }
+    // Zachowanie sumy poparcia: prognoza jest przeskalowana do sumy punktów startowych (nic nie „znika” do niezdecydowanych)
+    const Tn = computed.reduce((a, p) => a + p.startBase, 0);
+    const Fs = computed.reduce((a, p) => a + p.forecast, 0);
+    const kScale = Fs > 0 ? Tn / Fs : 1;
+    computed.forEach(p => {
+      p.forecast *= kScale;
+      p.targetPoint[24] = p.forecast;
+      for (let j = p.partyLastIdx + 1; j <= 24; j++) {
+        if (p.projLine[j] != null) p.projLine[j] *= 1 + (kScale - 1) * (j - p.partyLastIdx) / Math.max(1, p.h);
       }
+      p.isNear5 = Math.abs(p.forecast / Tn * (100 - OTHER_PCT) - 5.0) <= 0.65;
     });
-    quotients.sort((a, b) => b.val - a.val);
-    quotients.slice(0, 460).forEach(q => {
-      computed[q.idx].seats += 1;
-    });
+    const seatsArr = allocateSeats(computed.map(p => p.forecast), computed.map(p => p.name));
+    computed.forEach((p, i) => { p.seats = seatsArr[i]; });
 
     return { computed, hMain, phi, win, isAuto };
   }
@@ -965,6 +1031,7 @@
   renderAll = function() {
     _origRenderAll();
     saveCurrentState();
+    scheduleMC();
   };
 
   // Pobieranie aktualnych średnich miesięcznych ze stron (Jina Reader / CodeTabs / AllOrigins / bezpośredni fetch)
@@ -1233,77 +1300,31 @@
     });
   });
 
-  // Wczytywanie pliku Excel (.xlsx)
-  document.getElementById("xlsxInput").addEventListener("change", function(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = function(evt) {
-      try {
-        const data = new Uint8Array(evt.target.result);
-        const wb = XLSX.read(data, { type: "array" });
-        const ws = wb.Sheets["Prognoza_2027"] || wb.Sheets[wb.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
 
-        if (rows[3]) {
-          const dVal = rows[3][3]; // D4
-          if (typeof dVal === "number") {
-            if (dVal === 1) {
-              document.getElementById("autoMode").checked = true;
-            } else {
-              document.getElementById("autoMode").checked = false;
-              document.getElementById("phiSlider").value = dVal;
-            }
-          }
-        }
-
-        const prevVis = {};
-        dataset.forEach(p => { prevVis[p.name] = p.visible; });
-
-        const parsed = [];
-        let maxCol = 2;
-
-        for (let r = 7; r <= 15; r++) {
-          const row = rows[r];
-          if (!row || !row[0]) continue;
-          const name = String(row[0]).trim();
-          const bloc = String(row[1] || "Prawica").trim();
-
-          const rawSeries = new Array(25).fill(null);
-          let hasAny = false;
-          for (let c = 2; c <= 26; c++) {
-            if (typeof row[c] === "number" && !isNaN(row[c])) {
-              rawSeries[c - 2] = row[c];
-              hasAny = true;
-              if (c > maxCol) maxCol = c;
-            }
-          }
-
-          const ewVal = (typeof row[28] === "number" && !isNaN(row[28])) ? row[28] : null; // AC
-          const apVal = (typeof row[33] === "number" && !isNaN(row[33])) ? row[33] : null; // AH
-          const ppVal = (typeof row[34] === "number" && !isNaN(row[34])) ? row[34] : null; // AI
-          if (hasAny) {
-            parsed.push({
-              name,
-              bloc,
-              rawSeries,
-              ewAvg: ewVal, apAvg: apVal, ppAvg: ppVal,
-              visible: prevVis.hasOwnProperty(name) ? prevVis[name] : true
-            });
-          }
-        }
-
-        if (parsed.length > 0) {
-          dataset = parsed;
-          lastMonthIdx = maxCol - 2;
-          autoNear5Applied = false;
-          renderAll();
-        }
-      } catch (err) {
-        alert("Nie udało się odczytać pliku Excel. Sprawdź, czy wybierasz plik Prognoza_Poparcia_Listopad_2027-v6-spojny.xlsx");
-      }
+  // Ręczny wpis regresji ewybory.eu (kolejny miesiąc lub poprawka wybranego)
+  document.getElementById("regBtn").addEventListener("click", () => {
+    const box = document.createElement("div");
+    box.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:99;overflow:auto;padding:14px";
+    const opts = MONTHS_25.map((m, i) => `<option value="${i}">${m}</option>`).join("");
+    box.innerHTML = `<div style="max-width:420px;margin:0 auto;background:var(--card);border-radius:14px;padding:14px"><h3 style="margin-bottom:8px">Regresja ewybory.eu (%)</h3><select id="regMonth" style="width:100%;padding:8px;margin-bottom:8px">${opts}</select><div id="regRows"></div><div style="display:flex;gap:8px;margin-top:10px"><button class="action-btn" id="regSave">Zapisz</button><button class="action-btn secondary" id="regCancel">Anuluj</button></div></div>`;
+    document.body.appendChild(box);
+    const sel = box.querySelector("#regMonth");
+    sel.value = Math.min(24, lastMonthIdx + 1);
+    const fill = () => {
+      const i = +sel.value;
+      box.querySelector("#regRows").innerHTML = dataset.map((p, k) => `<label style="display:flex;justify-content:space-between;align-items:center;margin:4px 0">${p.name}<input type="number" step="0.1" inputmode="decimal" data-k="${k}" value="${typeof p.rawSeries[i] === "number" ? p.rawSeries[i] : ""}" style="width:90px;padding:6px"></label>`).join("");
     };
-    reader.readAsArrayBuffer(file);
+    sel.addEventListener("change", fill); fill();
+    box.querySelector("#regCancel").onclick = () => box.remove();
+    box.querySelector("#regSave").onclick = () => {
+      const i = +sel.value;
+      box.querySelectorAll("input[data-k]").forEach(inp => {
+        const v = parseFloat(String(inp.value).replace(",", "."));
+        dataset[+inp.dataset.k].rawSeries[i] = isNaN(v) ? null : v;
+      });
+      lastMonthIdx = Math.max(lastMonthIdx, i);
+      box.remove(); renderAll();
+    };
   });
 
   document.getElementById("autoMode").addEventListener("change", renderAll);

@@ -1,5 +1,11 @@
 {
  "updated": "2026-11-24T08:53:32Z",
+ "checked": "2026-11-24T09:02:08Z",
+ "status": {
+  "ewAvg": "ok",
+  "apAvg": "ok",
+  "ppAvg": "ok"
+ },
  "sources": {
   "ewAvg": {
    "RAZEM": 4.01,

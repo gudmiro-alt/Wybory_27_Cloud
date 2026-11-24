@@ -412,7 +412,7 @@
       <div class="card-title">
         <span>Założenia modelu</span>
       </div>
-      <div class="status-note">φ (tłumienie trendu) dobierane automatycznie i płynnie wg liczby miesięcy do 11/2027 (ok. 0,80 daleko od wyborów, 0,85 przy 5–8 mies., 0,75 w ostatnich 4). Trend: ważona średnia ostatnich 4 zmian miesięcznych regresji (45/25/18/12%). Średnie agregatorów normalizowane do sumy 98,4%; poziom startowy przesuwany ku nim (waga 0,5–0,8, rośnie ku wyborom); prognoza zachowuje sumę poziomu startowego. Mandaty: D\'Hondt w 41 okręgach (profile regionalne wg ewybory.eu), próg 5% od głosów ważnych. Pod wykresem: symulacja 3000 losowań.</div>
+      <div class="status-note">φ (tłumienie trendu) dobierane automatycznie i płynnie wg liczby miesięcy do 11/2027 (ok. 0,80 daleko od wyborów, 0,85 przy 5–8 mies., 0,75 w ostatnich 4). Trend: ważona średnia ostatnich 6 zmian miesięcznych regresji (30/22/17/13/10/8%). Średnie sondaży (miesięczne i bieżąca agregatorów) korygują poziom startowy tylko wtedy, gdy przez kilka miesięcy odchylają się od regresji w tę samą stronę; waga rośnie od 0,10 (rok do wyborów) do 0,70 (dzień wyborów). Każda partia podąża za własną regresją, suma nie jest wymuszana. Mandaty: D\'Hondt w 41 okręgach (profile regionalne wg ewybory.eu), próg 5% od głosów ważnych. Pod wykresem: symulacja 3000 losowań.</div>
     </div>
   </section>
 
@@ -480,27 +480,23 @@
     PL2050: "#422006"
   };
 
-  const MONTHS_25 = [
-    "lis.25", "gru.25", "sty.26", "lut.26", "mar.26", "kwi.26", "maj.26", "cze.26",
-    "lip.26", "sie.26", "wrz.26", "paź.26", "lis.26",
-    "gru.26", "sty.27", "lut.27", "mar.27", "kwi.27", "maj.27", "cze.27",
-    "lip.27", "sie.27", "wrz.27", "paź.27", "lis.27"
-  ];
+  const TARGET_IDX = 35; // indeks 0 = gru.24 … 35 = lis.27 (dzień wyborów)
+  const MONTHS = Array.from({ length: TARGET_IDX + 1 }, (_, i) => ["sty", "lut", "mar", "kwi", "maj", "cze", "lip", "sie", "wrz", "paź", "lis", "gru"][(11 + i) % 12] + "." + String(24 + Math.floor((11 + i) / 12)).slice(-2));
 
 
   let dataset = [
-    { name: "KO",     bloc: "Demokratyczny", rawSeries: [31.30, 31.30, 31.20, 31.20, 31.20, 31.20, 31.20, 31.20, 31.20, 31.30, 31.30, 31.40, 31.50], ewAvg: 31.60, apAvg: 32.40, ppAvg: 32.60, visible: true },
-    { name: "PIS",    bloc: "Prawica",       rawSeries: [27.40, 27.00, 26.50, 26.00, 25.40, 24.70, 24.00, 23.20, 22.30, 21.40, 20.30, 19.20, 18.00], ewAvg: 20.20, apAvg: 21.90, ppAvg: 22.20, visible: true },
-    { name: "KONF",   bloc: "Prawica",       rawSeries: [13.70, 13.70, 13.60, 13.50, 13.40, 13.30, 13.20, 13.10, 13.00, 12.90, 12.80, 12.70, 12.50], ewAvg: 13.30, apAvg: 14.10, ppAvg: 13.70, visible: true },
-    { name: "KPP",    bloc: "Prawica",       rawSeries: [7.00,  7.40,  7.70,  8.00,  8.20,  8.50,  8.60,  8.70,  8.80,  8.90,  8.90,  8.80,  8.70],  ewAvg: 8.50,  apAvg: 9.10,  ppAvg: 8.50,  visible: true },
-    { name: "LEWICA", bloc: "Demokratyczny", rawSeries: [6.20,  6.10,  6.10,  6.10,  6.10,  6.20,  6.20,  6.30,  6.40,  6.60,  6.80,  7.00,  7.30],  ewAvg: 6.40,  apAvg: 7.30,  ppAvg: 7.30,  visible: true },
-    { name: "R+",     bloc: "Prawica",       rawSeries: [null,  null,  null,  null,  null,  null,  null,  null,  5.40,  5.20,  5.10,  4.90,  4.80],  ewAvg: 4.60,  apAvg: 4.70,  ppAvg: 4.70,  visible: false },
-    { name: "PSL",    bloc: "Demokratyczny", rawSeries: [2.80,  2.80,  2.80,  2.80,  2.80,  2.80,  2.90,  2.90,  2.90,  3.00,  3.10,  3.20,  3.30],  ewAvg: null,  apAvg: 3.00,  ppAvg: 3.50,  visible: false },
-    { name: "RAZEM",  bloc: "Demokratyczny", rawSeries: [3.90,  4.00,  4.10,  4.10,  4.10,  4.10,  4.00,  4.00,  3.90,  3.70,  3.60,  3.40,  3.20],  ewAvg: null,  apAvg: 4.40,  ppAvg: 4.20,  visible: false },
-    { name: "PL2050", bloc: "Demokratyczny", rawSeries: [2.40,  2.20,  2.00,  1.80,  1.70,  1.60,  1.50,  1.40,  1.40,  1.30,  1.30,  1.30,  1.40],  ewAvg: null,  apAvg: 1.70,  ppAvg: 1.70,  visible: false }
+    { name: "KO",     bloc: "Demokratyczny", rawSeries: [31.7, 31.7, 31.7, 31.7, 31.7, 31.7, 31.6, 31.5, 31.5, 31.4, 31.4, 31.3, 31.3, 31.2, 31.2, 31.2, 31.2, 31.2, 31.2, 31.2, 31.3, 31.3, 31.4, 31.5], mAvg: [null, null, null, null, null, null, null, null, null, null, null, null, null, 32.7, 31.6, 32.5, 33.3, 33.1, 31, 29.4, 28.6, 31, 32.4], ewAvg: 31.60, apAvg: 32.40, ppAvg: 32.60, visible: true },
+    { name: "PIS",    bloc: "Prawica",       rawSeries: [29.8, 29.7, 29.6, 29.5, 29.3, 29.1, 28.9, 28.7, 28.4, 28.1, 27.8, 27.4, 27, 26.5, 26, 25.4, 24.7, 24, 23.2, 22.3, 21.4, 20.3, 19.2, 18], mAvg: [null, null, null, null, null, null, null, null, null, null, null, null, null, 26.1, 24.2, 24.6, 23.7, 24.5, 24.4, 21, 19, 18.9, 21.3], ewAvg: 20.20, apAvg: 21.90, ppAvg: 22.20, visible: true },
+    { name: "KONF",   bloc: "Prawica",       rawSeries: [13.1, 13.3, 13.4, 13.5, 13.6, 13.7, 13.8, 13.8, 13.8, 13.8, 13.8, 13.7, 13.7, 13.6, 13.5, 13.4, 13.3, 13.2, 13.1, 13, 12.9, 12.8, 12.7, 12.5], mAvg: [null, null, null, null, null, null, null, null, null, null, null, null, null, 11.9, 13.1, 12.4, 12.8, 13, 12.4, 13.6, 13.2, 13.7, 12.4], ewAvg: 13.30, apAvg: 14.10, ppAvg: 13.70, visible: true },
+    { name: "KPP",    bloc: "Prawica",       rawSeries: [null, null, null, null, null, 3.8, 4.5, 5, 5.6, 6.1, 6.6, 7, 7.4, 7.7, 8, 8.2, 8.5, 8.6, 8.7, 8.8, 8.9, 8.9, 8.8, 8.7], mAvg: [null, null, null, null, null, null, null, null, null, null, null, null, null, 8.4, 8.5, 8.5, 8, 8.3, 8.2, 9.6, 8.7, 8.5, 9.3],  ewAvg: 8.50,  apAvg: 9.10,  ppAvg: 8.50,  visible: true },
+    { name: "LEWICA", bloc: "Demokratyczny", rawSeries: [8.3, 7.2, 7.5, 7.2, 6.9, 6.7, 6.6, 6.5, 6.4, 6.3, 6.2, 6.2, 6.1, 6.1, 6.1, 6.1, 6.2, 6.2, 6.3, 6.4, 6.6, 6.8, 7, 7.3], mAvg: [null, null, null, null, null, null, null, null, null, null, null, null, null, 6.6, 6.4, 5.9, 6.7, 6.8, 7.3, 7.2, 6.1, 7.2, 6.2],  ewAvg: 6.40,  apAvg: 7.30,  ppAvg: 7.30,  visible: true },
+    { name: "R+",     bloc: "Prawica",       rawSeries: [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, 5.4, 5.2, 5.1, 4.9, 4.8], mAvg: [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, 6, 5.4, 5.1, 4.7],  ewAvg: 4.60,  apAvg: 4.70,  ppAvg: 4.70,  visible: false },
+    { name: "PSL",    bloc: "Demokratyczny", rawSeries: [null, null, null, null, null, null, 3, 2.9, 2.9, 2.8, 2.8, 2.8, 2.8, 2.8, 2.8, 2.8, 2.8, 2.9, 2.9, 2.9, 3, 3.1, 3.2, 3.3], mAvg: [null, null, null, null, null, null, null, null, null, null, null, null, null, 2.7, 2.9, 3.1, 3.2, 3.2, 3, 3.3, 2.5, 2.8, 3.4],  ewAvg: null,  apAvg: 3.00,  ppAvg: 3.50,  visible: false },
+    { name: "RAZEM",  bloc: "Demokratyczny", rawSeries: [1.6, 1.9, 2.2, 2.5, 2.8, 3, 3.2, 3.4, 3.6, 3.7, 3.9, 3.9, 4, 4.1, 4.1, 4.1, 4.1, 4, 4, 3.9, 3.7, 3.6, 3.4, 3.2], mAvg: [null, null, null, null, null, null, null, null, null, null, null, null, null, 3.7, 3.9, 3.2, 4.2, 3.2, 3.6, 3.6, 3.7, 4.1, 3.7],  ewAvg: null,  apAvg: 4.40,  ppAvg: 4.20,  visible: false },
+    { name: "PL2050", bloc: "Demokratyczny", rawSeries: [null, null, null, null, null, null, null, null, 3.1, 2.8, 2.6, 2.4, 2.2, 2, 1.8, 1.7, 1.6, 1.5, 1.4, 1.4, 1.3, 1.3, 1.3, 1.4], mAvg: [null, null, null, null, null, null, null, null, null, null, null, null, null, 2.2, 2.4, 1.4, 1.5, 1.9, 1.5, 1.3, 1.4, 1.1, 1.3],  ewAvg: null,  apAvg: 1.70,  ppAvg: 1.70,  visible: false }
   ];
 
-  let lastMonthIdx = 12; // indeks 12 = lis.26 (0..24)
+  let lastMonthIdx = 23; // indeks 23 = lis.26
   let chartInstance = null;
 
 
@@ -567,12 +563,12 @@
       const f1 = x => x.toFixed(1).replace(".", ",");
       const rows = computed.map((p, i) => `<div style="display:grid;grid-template-columns:62px 1fr 52px 1fr;gap:4px;padding:3px 0;border-top:1px solid var(--border)"><b>${p.name}</b><span>${f1(pct(mc.sh[i], .1))}–${f1(pct(mc.sh[i], .9))}%</span><span>${Math.round(mc.enter[i] / mc.N * 100)}%</span><span>${pct(mc.st[i], .1)}–${pct(mc.st[i], .9)} (med. ${pct(mc.st[i], .5)})</span></div>`).join("");
       const warns = computed.filter(p => p.aggAvg != null && Math.abs(p.aggAvg - p.last) > 2).map(p => `⚠ ${p.name}: regresja ${f1(p.last)}% vs średnia agregatorów ${f1(p.aggAvg)}% (różnica ${f1(Math.abs(p.aggAvg - p.last))} pp)`).join("<br>");
-      box.innerHTML = `<div style="font-weight:700;margin-bottom:4px">Scenariusz, nie prognoza (${mc.N} symulacji)</div><div style="color:var(--muted);margin-bottom:6px">Przedziały 80%: udział w głosach ważnych, szansa wejścia do Sejmu (próg 5%) i mandaty. Rozrzut rośnie, gdy suma regresji odbiega od 98,4%. Błąd = ok. 5% udziału w dniu wyborów, ok. 11% udziału rok wcześniej (R+ ×1,8 jako nowa partia) — przyjęte wg typowych błędów średnich sondaży, nie z własnej historii.</div><div style="display:grid;grid-template-columns:62px 1fr 52px 1fr;gap:4px;color:var(--muted)"><span>Partia</span><span>Poparcie</span><span>Próg</span><span>Mandaty</span></div>${rows}<div style="margin-top:8px">Większość 231 mandatów: Partie Demokratyczne <b>${Math.round(mc.majD * 100)}%</b>, Partie Prawicy <b>${Math.round(mc.majR * 100)}%</b></div><div style="margin-top:6px">Suma regresji: <b>${f1(computed.reduce((a, p) => a + p.last, 0))}%</b> (cel ${f1(100 - OTHER_PCT)}%) – im bliżej celu, tym mniejszy rozrzut.</div>${warns ? `<div style="margin-top:6px;color:var(--warn)">${warns}</div>` : ""}`;
+      box.innerHTML = `<div style="font-weight:700;margin-bottom:4px">Scenariusz, nie prognoza (${mc.N} symulacji)</div><div style="color:var(--muted);margin-bottom:6px">Przedziały 80%: udział w głosach ważnych, szansa wejścia do Sejmu (próg 5%) i mandaty. Rozrzut rośnie, gdy suma regresji odbiega od 98,4%. Błąd = ok. 5% udziału w dniu wyborów, ok. 11% udziału rok wcześniej (R+ ×1,8 jako nowa partia) — przyjęte wg typowych błędów średnich sondaży, nie z własnej historii.</div><div style="display:grid;grid-template-columns:62px 1fr 52px 1fr;gap:4px;color:var(--muted)"><span>Partia</span><span>Poparcie</span><span>Próg</span><span>Mandaty</span></div>${rows}<div style="margin-top:8px">Większość 231 mandatów: Partie Demokratyczne <b>${Math.round(mc.majD * 100)}%</b>, Partie Prawicy <b>${Math.round(mc.majR * 100)}%</b></div><div style="margin-top:6px">Suma regresji: <b>${f1(computed.reduce((a, p) => a + p.last, 0))}%</b>, suma prognozy: <b>${f1(computed.reduce((a, p) => a + p.forecast, 0))}%</b> (cel ${f1(100 - OTHER_PCT)}%) – im bliżej celu, tym mniejszy rozrzut.</div>${warns ? `<div style="margin-top:6px;color:var(--warn)">${warns}</div>` : ""}`;
     }, 250);
   }
 
-  // Im bliżej wyborów, tym większą wagę mają bieżące średnie sondaży (limit 0,5 przy h≥24, 0,6 przy h=12, 0,8 przy h=0)
-  function anchorCap(h) { return Math.min(0.85, Math.max(0.5, 0.6 + 0.2 * (12 - h) / 12)); }
+  // Limit wagi średnich sondaży: 0,10 przy h≥12 miesiącach do wyborów, rośnie liniowo do 0,70 w dniu wyborów
+  function anchorCap(h) { return 0.10 + 0.60 * Math.min(1, Math.max(0, 1 - h / 12)); }
 
   // φ(h): ciągła interpolacja wartości z opisu modelu (0,80 dla h>8; 0,85 dla h=5–8; 0,75 dla h≤4), węzły w środkach przedziałów
   function getAutoPhi(h) {
@@ -583,6 +579,21 @@
   }
 
   // Wtyczka rysująca lekką mgiełkę poniżej progu 5% na wykresie
+  // Przy powiększeniu strony grubość linii, punkty i okno podpowiedzi są pomniejszane o skalę zoomu, by wyglądały jak przy 100%
+  const zoomScalePlugin = {
+    id: "zoomScale",
+    beforeUpdate(chart) {
+      const z = Math.max(1, (window.visualViewport && visualViewport.scale) || 1);
+      chart.data.datasets.forEach(ds => {
+        if (ds._bw === undefined) { ds._bw = ds.borderWidth !== undefined ? ds.borderWidth : 2; ds._pr = ds.pointRadius; }
+        ds.borderWidth = ds._bw / z;
+        if (typeof ds._pr === "number") ds.pointRadius = ds._pr / z;
+      });
+      chart.options.plugins = chart.options.plugins || {};
+      chart.options.plugins.tooltip = Object.assign(chart.options.plugins.tooltip || {}, { titleFont: { size: 12 / z }, bodyFont: { size: 12 / z }, padding: 6 / z, boxPadding: 3 / z });
+    }
+  };
+
   const belowThresholdFogPlugin = {
     id: "belowThresholdFog",
     beforeDatasetsDraw(chart) {
@@ -604,7 +615,7 @@
   };
 
   function computeModel() {
-    const hMain = Math.max(0, 24 - lastMonthIdx);
+    const hMain = Math.max(0, TARGET_IDX - lastMonthIdx);
     const phi = getAutoPhi(hMain);
 
     // Średnie agregatorów: średnia ze źródeł, następnie normalizacja do sumy 100% minus inne komitety (gdy dostępne dla wszystkich partii)
@@ -624,12 +635,12 @@
       const lastObj = validPoints[validPoints.length - 1];
       const last = lastObj.val;
       const partyLastIdx = lastObj.idx;
-      const h = Math.max(0, 24 - partyLastIdx);
+      const h = Math.max(0, TARGET_IDX - partyLastIdx);
 
-      // Ważony trend z ostatnich ≤4 kroków miesięcznych: [0.45, 0.25, 0.18, 0.12]
-      const slopeWeights = [0.45, 0.25, 0.18, 0.12];
+      // Ważony trend z ostatnich ≤6 zmian miesięcznych regresji (dłuższa historia liczy się mocniej niż pojedynczy ruch)
+      const slopeWeights = [0.30, 0.22, 0.17, 0.13, 0.10, 0.08];
       const stepDiffs = [];
-      for (let m = validPoints.length - 1; m >= 1 && stepDiffs.length < 4; m--) {
+      for (let m = validPoints.length - 1; m >= 1 && stepDiffs.length < 6; m--) {
         const cur = validPoints[m];
         const prevPt = validPoints[m - 1];
         if (cur.idx - prevPt.idx === 1) {
@@ -645,21 +656,29 @@
 
       const aggAvg = aggRaw[pi] != null ? aggRaw[pi] * kAgg : null;
       const hasAvg = (typeof aggAvg === "number" && !isNaN(aggAvg));
-      const diffVal = hasAvg ? (aggAvg - last) : 0;
-      const diffAbs = Math.abs(diffVal);
-
-      // Kotwica: poziom startowy przesuwany ku średniej agregatorów; limit wagi rośnie ku wyborom
-      const wAnchor = hasAvg ? Math.min(anchorCap(h), 0.15 + 0.07 * diffAbs) : 0;
-      const startBase = hasAvg ? (last + wAnchor * diffVal) : last;
       const multH = Math.max(0.01, phi * (1 - Math.pow(phi, Math.max(1, h))) / (1 - phi));
-      // Gdy średnie agregatorów są po przeciwnej stronie niż trend regresji, trend jest osłabiany proporcjonalnie do wagi kotwicy
-      const opposed = hasAvg && diffVal * weightedTrend < 0;
-      const adjTrend = weightedTrend * (opposed ? (1 - wAnchor) : 1);
 
-      const histLine = new Array(25).fill(null);
-      const projLine = new Array(25).fill(null);
-      const avgPoint = new Array(25).fill(null);
-      const targetPoint = new Array(25).fill(null);
+      // Kotwica: odchylenia średnich sondaży od regresji z ostatnich ≤4 miesięcy (średnie miesięczne + bieżąca średnia agregatorów).
+      // Waga = limit zależny od czasu do wyborów × spójność kierunku odchyleń; poziom startowy przesuwa średnie odchylenie, nie pojedynczy punkt.
+      const devs = [];
+      if (hasAvg && !(p.mAvg && typeof p.mAvg[partyLastIdx] === "number")) devs.push(aggAvg - last);
+      for (let t = partyLastIdx; t >= partyLastIdx - 3; t--) {
+        const av = p.mAvg ? p.mAvg[t] : null, rg = p.rawSeries[t];
+        if (typeof av === "number" && typeof rg === "number") devs.push(av - rg);
+      }
+      let devMean = 0, qn = 0.5;
+      if (devs.length) {
+        devMean = devs.reduce((a, x) => a + x, 0) / devs.length;
+        if (devs.length >= 2) { const same = devs.filter(x => x * devMean > 0).length / devs.length; qn = Math.max(0, (same - 0.5) * 2); }
+      }
+      const wAnchor = devs.length ? anchorCap(h) * (0.3 + 0.7 * qn) : 0;
+      const startBase = last + wAnchor * devMean;
+      const adjTrend = weightedTrend;
+
+      const histLine = new Array(TARGET_IDX + 1).fill(null);
+      const projLine = new Array(TARGET_IDX + 1).fill(null);
+      const avgPoint = new Array(TARGET_IDX + 1).fill(null);
+      const targetPoint = new Array(TARGET_IDX + 1).fill(null);
 
       for (let i = 0; i <= partyLastIdx; i++) {
         histLine[i] = p.rawSeries[i];
@@ -679,7 +698,7 @@
       }
 
       const forecast = h > 0 ? rawForecast : last;
-      targetPoint[24] = forecast;
+      targetPoint[TARGET_IDX] = forecast;
 
       // Czy partia zbliża się do progu 5% na mniej niż ok. 0,5 p.p. (w prognozie lub dowolnym punkcie trajektorii projekcji)
       const isNear5 = Math.abs(forecast - 5.0) <= 0.65 || (forecast >= 4.35 && forecast <= 5.50);
@@ -692,7 +711,7 @@
         trend: weightedTrend,
         forecast,
         isNear5,
-        startBase: hasAvg ? (last + wAnchor * diffVal) : last,
+        startBase,
         aggAvg: hasAvg ? aggAvg : null,
         seats: 0,
         histLine,
@@ -703,18 +722,9 @@
     });
 
     // Normalizacja: suma prognozy = 98,4% (gdy suma regresji jest niższa, wszystkie partie są stopniowo podciągane i odwrotnie)
-    // Prognoza zachowuje sumę poziomu startowego (to, co jedna partia traci, zyskują pozostałe); suma nie jest wymuszana do 100%
-    const Tn = computed.reduce((a, p) => a + p.startBase, 0);
+    // Każda partia podąża za własną regresją; suma nie jest wymuszana (od niej zależy tylko rozrzut symulacji i ocena progu 5% względem głosów ważnych)
     const Fs = computed.reduce((a, p) => a + p.forecast, 0);
-    const kScale = Fs > 0 ? Tn / Fs : 1;
-    computed.forEach(p => {
-      p.forecast *= kScale;
-      p.targetPoint[24] = p.forecast;
-      for (let j = p.partyLastIdx + 1; j <= 24; j++) {
-        if (p.projLine[j] != null) p.projLine[j] *= 1 + (kScale - 1) * (j - p.partyLastIdx) / Math.max(1, p.h);
-      }
-      p.isNear5 = Math.abs(p.forecast / Tn * (100 - OTHER_PCT) - 5.0) <= 0.65;
-    });
+    computed.forEach(p => { p.isNear5 = Math.abs(p.forecast / Fs * (100 - OTHER_PCT) - 5.0) <= 0.65; });
     const seatsArr = allocateSeats(computed.map(p => p.forecast), computed.map(p => p.name));
     computed.forEach((p, i) => { p.seats = seatsArr[i]; });
 
@@ -725,7 +735,7 @@
     const { computed, hMain, phi } = computeModel();
     const sorted = [...computed].sort((a, b) => b.forecast - a.forecast);
 
-    const lastLbl = MONTHS_25[lastMonthIdx] || "lis.26";
+    const lastLbl = MONTHS[lastMonthIdx] || "lis.26";
     document.getElementById("dataStatus").textContent =
       `Baza: ${lastLbl} → cel: lis.27 (h=${hMain}) • AUTO φ=${phi.toFixed(2)}`;
 
@@ -854,7 +864,7 @@
     // Wzmocniona linia progu wyborczego 5%
     datasets.push({
       label: "Próg wyborczy 5%",
-      data: new Array(25).fill(5.0),
+      data: new Array(TARGET_IDX + 1).fill(5.0),
       borderColor: "#facc15",
       borderWidth: 2.2,
       borderDash: [7, 4],
@@ -928,10 +938,10 @@
     chartInstance = new Chart(ctx, {
       type: "line",
       data: {
-        labels: MONTHS_25,
+        labels: MONTHS,
         datasets: datasets
       },
-      plugins: [belowThresholdFogPlugin],
+      plugins: [belowThresholdFogPlugin, zoomScalePlugin],
       options: {
         responsive: true,
         devicePixelRatio: (window.devicePixelRatio || 1) * Math.max(1, (window.visualViewport && visualViewport.scale) || 1),
@@ -986,7 +996,7 @@
     });
   }
 
-  const STORAGE_KEY = "prognoza_sejm_2027_state_v11";
+  const STORAGE_KEY = "prognoza_sejm_2027_state_v12";
 
   function saveCurrentState() {
     try {
@@ -1280,8 +1290,7 @@
   });
 
 
-  // Ręczny wpis regresji ewybory.eu (kolejny miesiąc lub poprawka wybranego)
-  // Po powiększeniu (pinch-zoom) wykres jest przerysowywany w wyższej rozdzielczości zamiast rozmywać obraz
+  // Po powiększeniu (pinch-zoom) wykres jest przerysowywany ostro, a linie i okno podpowiedzi zachowują wielkość jak przy 100%
   if (window.visualViewport) {
     let zt = null;
     visualViewport.addEventListener("resize", () => {
@@ -1290,31 +1299,34 @@
         if (!chartInstance) return;
         chartInstance.options.devicePixelRatio = (window.devicePixelRatio || 1) * Math.max(1, visualViewport.scale);
         chartInstance.resize();
+        chartInstance.update("none");
       }, 200);
     });
   }
 
+  // Ręczny wpis danych: regresja ewybory.eu albo średnia miesięczna, dla wybranego miesiąca
   document.getElementById("regBtn").addEventListener("click", () => {
     const box = document.createElement("div");
     box.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:99;overflow:auto;padding:14px";
-    const opts = MONTHS_25.map((m, i) => `<option value="${i}">${m}</option>`).join("");
-    box.innerHTML = `<div style="max-width:420px;margin:0 auto;background:var(--card);border-radius:14px;padding:14px"><h3 style="margin-bottom:8px">Regresja ewybory.eu (%)</h3><select id="regMonth" style="width:100%;padding:8px;margin-bottom:8px">${opts}</select><div id="regRows"></div><div style="display:flex;gap:8px;margin-top:10px"><button class="action-btn" id="regSave">Zapisz</button><button class="action-btn secondary" id="regCancel">Anuluj</button></div></div>`;
+    const opts = MONTHS.map((m, i) => `<option value="${i}">${m}</option>`).join("");
+    box.innerHTML = `<div style="max-width:420px;margin:0 auto;background:var(--card);border-radius:14px;padding:14px"><h3 style="margin-bottom:8px">Wpis danych (%)</h3><select id="regKind" style="width:100%;padding:8px;margin-bottom:8px"><option value="reg">Regresja ewybory.eu</option><option value="avg">Średnia miesięczna</option></select><select id="regMonth" style="width:100%;padding:8px;margin-bottom:8px">${opts}</select><div id="regRows"></div><div style="display:flex;gap:8px;margin-top:10px"><button class="action-btn" id="regSave">Zapisz</button><button class="action-btn secondary" id="regCancel">Anuluj</button></div></div>`;
     document.body.appendChild(box);
-    const sel = box.querySelector("#regMonth");
-    sel.value = Math.min(24, lastMonthIdx + 1);
+    const kindSel = box.querySelector("#regKind"), sel = box.querySelector("#regMonth");
+    const arr = p => kindSel.value === "avg" ? (p.mAvg || (p.mAvg = [])) : p.rawSeries;
     const fill = () => {
       const i = +sel.value;
-      box.querySelector("#regRows").innerHTML = dataset.map((p, k) => `<label style="display:flex;justify-content:space-between;align-items:center;margin:4px 0">${p.name}<input type="number" step="0.1" inputmode="decimal" data-k="${k}" value="${typeof p.rawSeries[i] === "number" ? p.rawSeries[i] : ""}" style="width:90px;padding:6px"></label>`).join("");
+      box.querySelector("#regRows").innerHTML = dataset.map((p, k) => `<label style="display:flex;justify-content:space-between;align-items:center;margin:4px 0">${p.name}<input type="number" step="0.1" inputmode="decimal" data-k="${k}" value="${typeof arr(p)[i] === "number" ? arr(p)[i] : ""}" style="width:90px;padding:6px"></label>`).join("");
     };
-    sel.addEventListener("change", fill); fill();
+    const setDefault = () => { sel.value = kindSel.value === "avg" ? Math.max(0, lastMonthIdx - 1) : Math.min(TARGET_IDX, lastMonthIdx + 1); fill(); };
+    kindSel.addEventListener("change", setDefault); sel.addEventListener("change", fill); setDefault();
     box.querySelector("#regCancel").onclick = () => box.remove();
     box.querySelector("#regSave").onclick = () => {
       const i = +sel.value;
       box.querySelectorAll("input[data-k]").forEach(inp => {
         const v = parseFloat(String(inp.value).replace(",", "."));
-        dataset[+inp.dataset.k].rawSeries[i] = isNaN(v) ? null : v;
+        arr(dataset[+inp.dataset.k])[i] = isNaN(v) ? null : v;
       });
-      lastMonthIdx = Math.max(lastMonthIdx, i);
+      if (kindSel.value === "reg") lastMonthIdx = Math.max(lastMonthIdx, i);
       box.remove(); renderAll();
     };
   });

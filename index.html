@@ -412,7 +412,7 @@
       <div class="card-title">
         <span>Założenia modelu</span>
       </div>
-      <div class="status-note">φ (tłumienie trendu) dobierane automatycznie wg liczby miesięcy do 11/2027: h&gt;8 → 0,80 • 5–8 → 0,85 • ≤4 → 0,75. Trend: ważona średnia ostatnich 4 zmian miesięcznych regresji (45/25/18/12%). Poziom startowy przesuwany ku średniej agregatorów (waga do 0,5–0,8, rośnie ku wyborom). Suma poparcia domykana do 98,4%. Mandaty: D'Hondt w 41 okręgach (profile regionalne wg ewybory.eu), próg 5% od głosów ważnych. Karta pod wykresem: symulacja 3000 losowań.</div>
+      <div class="status-note">φ (tłumienie trendu) dobierane automatycznie i płynnie wg liczby miesięcy do 11/2027 (ok. 0,80 daleko od wyborów, 0,85 przy 5–8 mies., 0,75 w ostatnich 4). Trend: ważona średnia ostatnich 4 zmian miesięcznych regresji (45/25/18/12%). Średnie agregatorów normalizowane do sumy 98,4%; poziom startowy przesuwany ku nim (waga 0,5–0,8, rośnie ku wyborom); prognoza zachowuje sumę poziomu startowego. Mandaty: D\'Hondt w 41 okręgach (profile regionalne wg ewybory.eu), próg 5% od głosów ważnych. Pod wykresem: symulacja 3000 losowań.</div>
     </div>
   </section>
 
@@ -567,16 +567,18 @@
       const f1 = x => x.toFixed(1).replace(".", ",");
       const rows = computed.map((p, i) => `<div style="display:grid;grid-template-columns:62px 1fr 52px 1fr;gap:4px;padding:3px 0;border-top:1px solid var(--border)"><b>${p.name}</b><span>${f1(pct(mc.sh[i], .1))}–${f1(pct(mc.sh[i], .9))}%</span><span>${Math.round(mc.enter[i] / mc.N * 100)}%</span><span>${pct(mc.st[i], .1)}–${pct(mc.st[i], .9)} (med. ${pct(mc.st[i], .5)})</span></div>`).join("");
       const warns = computed.filter(p => p.aggAvg != null && Math.abs(p.aggAvg - p.last) > 2).map(p => `⚠ ${p.name}: regresja ${f1(p.last)}% vs średnia agregatorów ${f1(p.aggAvg)}% (różnica ${f1(Math.abs(p.aggAvg - p.last))} pp)`).join("<br>");
-      box.innerHTML = `<div style="font-weight:700;margin-bottom:4px">Scenariusz, nie prognoza (${mc.N} symulacji)</div><div style="color:var(--muted);margin-bottom:6px">Przedziały 80%: udział w głosach ważnych, szansa wejścia do Sejmu (próg 5%) i mandaty. Im suma regresji dalsza od 98,4%, tym większy rozrzut. Błąd = ok. 5% udziału w dniu wyborów, ok. 11% udziału rok wcześniej (R+ ×1,8 jako nowa partia) — przyjęte wg typowych błędów średnich sondaży, nie z własnej historii.</div><div style="display:grid;grid-template-columns:62px 1fr 52px 1fr;gap:4px;color:var(--muted)"><span>Partia</span><span>Poparcie</span><span>Próg</span><span>Mandaty</span></div>${rows}<div style="margin-top:8px">Większość 231 mandatów: Partie Demokratyczne <b>${Math.round(mc.majD * 100)}%</b>, Partie Prawicy <b>${Math.round(mc.majR * 100)}%</b></div><div style="margin-top:6px">Suma regresji: <b>${f1(computed.reduce((a, p) => a + p.last, 0))}%</b> (cel ${f1(100 - OTHER_PCT)}%) – luka domykana stopniowo do 11/2027.</div>${warns ? `<div style="margin-top:6px;color:var(--warn)">${warns}</div>` : ""}`;
+      box.innerHTML = `<div style="font-weight:700;margin-bottom:4px">Scenariusz, nie prognoza (${mc.N} symulacji)</div><div style="color:var(--muted);margin-bottom:6px">Przedziały 80%: udział w głosach ważnych, szansa wejścia do Sejmu (próg 5%) i mandaty. Rozrzut rośnie, gdy suma regresji odbiega od 98,4%. Błąd = ok. 5% udziału w dniu wyborów, ok. 11% udziału rok wcześniej (R+ ×1,8 jako nowa partia) — przyjęte wg typowych błędów średnich sondaży, nie z własnej historii.</div><div style="display:grid;grid-template-columns:62px 1fr 52px 1fr;gap:4px;color:var(--muted)"><span>Partia</span><span>Poparcie</span><span>Próg</span><span>Mandaty</span></div>${rows}<div style="margin-top:8px">Większość 231 mandatów: Partie Demokratyczne <b>${Math.round(mc.majD * 100)}%</b>, Partie Prawicy <b>${Math.round(mc.majR * 100)}%</b></div><div style="margin-top:6px">Suma regresji: <b>${f1(computed.reduce((a, p) => a + p.last, 0))}%</b> (cel ${f1(100 - OTHER_PCT)}%) – im bliżej celu, tym mniejszy rozrzut.</div>${warns ? `<div style="margin-top:6px;color:var(--warn)">${warns}</div>` : ""}`;
     }, 250);
   }
 
   // Im bliżej wyborów, tym większą wagę mają bieżące średnie sondaży (limit 0,5 przy h≥24, 0,6 przy h=12, 0,8 przy h=0)
   function anchorCap(h) { return Math.min(0.85, Math.max(0.5, 0.6 + 0.2 * (12 - h) / 12)); }
 
+  // φ(h): ciągła interpolacja wartości z opisu modelu (0,80 dla h>8; 0,85 dla h=5–8; 0,75 dla h≤4), węzły w środkach przedziałów
   function getAutoPhi(h) {
-    if (h > 8) return 0.80;
-    if (h > 4) return 0.85;
+    if (h >= 10) return 0.80;
+    if (h >= 6.5) return 0.85 - 0.05 * (h - 6.5) / 3.5;
+    if (h >= 2) return 0.75 + 0.10 * (h - 2) / 4.5;
     return 0.75;
   }
 
@@ -605,7 +607,15 @@
     const hMain = Math.max(0, 24 - lastMonthIdx);
     const phi = getAutoPhi(hMain);
 
-    const computed = dataset.map(p => {
+    // Średnie agregatorów: średnia ze źródeł, następnie normalizacja do sumy 100% minus inne komitety (gdy dostępne dla wszystkich partii)
+    const aggRaw = dataset.map(p => {
+      const v = [p.ewAvg, p.apAvg, p.ppAvg].filter(x => typeof x === "number" && !isNaN(x));
+      return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null;
+    });
+    const sumAgg = aggRaw.reduce((a, x) => a + (x || 0), 0);
+    const kAgg = (aggRaw.every(x => x != null) && sumAgg > 0) ? (100 - OTHER_PCT) / sumAgg : 1;
+
+    const computed = dataset.map((p, pi) => {
       const validPoints = [];
       p.rawSeries.forEach((v, idx) => {
         if (typeof v === "number" && !isNaN(v)) validPoints.push({ val: v, idx });
@@ -633,8 +643,7 @@
         weightedTrend = stepDiffs.reduce((acc, d, i) => acc + d * (usedW[i] / sumW), 0);
       }
 
-      const srcVals = [p.ewAvg, p.apAvg, p.ppAvg].filter(v => typeof v === "number" && !isNaN(v));
-      const aggAvg = srcVals.length > 0 ? (srcVals.reduce((a, b) => a + b, 0) / srcVals.length) : null;
+      const aggAvg = aggRaw[pi] != null ? aggRaw[pi] * kAgg : null;
       const hasAvg = (typeof aggAvg === "number" && !isNaN(aggAvg));
       const diffVal = hasAvg ? (aggAvg - last) : 0;
       const diffAbs = Math.abs(diffVal);
@@ -694,23 +703,17 @@
     });
 
     // Normalizacja: suma prognozy = 98,4% (gdy suma regresji jest niższa, wszystkie partie są stopniowo podciągane i odwrotnie)
-    const Tn = 100 - OTHER_PCT; // docelowa suma poparcia: 100% minus inne komitety
-    const raw = computed.map(p => p.forecast);
-    // Brakującą sumę (gdy regresja daje < 98,4%) przydzielamy najpierw partiom leżącym poniżej średniej agregatorów, resztę proporcjonalnie; nadwyżkę zdejmujemy proporcjonalnie
-    let def = Tn - raw.reduce((a, x) => a + x, 0);
-    const fin = [...raw];
-    if (def > 0) {
-      const g = computed.map((p, i) => p.aggAvg != null ? Math.max(0, p.aggAvg - raw[i]) : 0), sg = g.reduce((a, x) => a + x, 0);
-      if (sg > 0) { const use = Math.min(def, sg); g.forEach((x, i) => { fin[i] += use * x / sg; }); def -= use; }
-    }
-    const F2 = fin.reduce((a, x) => a + x, 0), k2 = F2 > 0 ? Tn / F2 : 1;
-    computed.forEach((p, i) => {
-      const f = fin[i] * k2, ratio = raw[i] > 0 ? f / raw[i] : 1;
-      p.forecast = f; p.targetPoint[24] = f;
+    // Prognoza zachowuje sumę poziomu startowego (to, co jedna partia traci, zyskują pozostałe); suma nie jest wymuszana do 100%
+    const Tn = computed.reduce((a, p) => a + p.startBase, 0);
+    const Fs = computed.reduce((a, p) => a + p.forecast, 0);
+    const kScale = Fs > 0 ? Tn / Fs : 1;
+    computed.forEach(p => {
+      p.forecast *= kScale;
+      p.targetPoint[24] = p.forecast;
       for (let j = p.partyLastIdx + 1; j <= 24; j++) {
-        if (p.projLine[j] != null) p.projLine[j] *= 1 + (ratio - 1) * (j - p.partyLastIdx) / Math.max(1, p.h);
+        if (p.projLine[j] != null) p.projLine[j] *= 1 + (kScale - 1) * (j - p.partyLastIdx) / Math.max(1, p.h);
       }
-      p.isNear5 = Math.abs(f - 5.0) <= 0.65;
+      p.isNear5 = Math.abs(p.forecast / Tn * (100 - OTHER_PCT) - 5.0) <= 0.65;
     });
     const seatsArr = allocateSeats(computed.map(p => p.forecast), computed.map(p => p.name));
     computed.forEach((p, i) => { p.seats = seatsArr[i]; });

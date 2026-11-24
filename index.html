@@ -364,7 +364,6 @@
       <button class="action-btn secondary" id="syncWebBtn" title="Pobierz bieżące średnie sondaży z agregatorów">
         🔄 Aktualizuj
       </button>
-      <button class="action-btn secondary" id="closeBtn" title="Zamknij aplikację">✕</button>
       <button class="action-btn" id="regBtn" title="Wpisz wartości regresji ewybory.eu">➕ Regresja</button>
     </div>
   </header>
@@ -552,7 +551,7 @@
     const n = computed.length, names = computed.map(p => p.name);
     const T = computed.reduce((a, p) => a + p.forecast, 0);
     // odchylenie rośnie z udziałem partii (~√p) i z horyzontem; stały składnik 0,6 pp
-    const sig = computed.map(p => { const b = 0.45 * Math.sqrt(p.forecast) * Math.sqrt(0.5 + 0.5 * p.h / 12); return Math.sqrt(b * b + 0.36); });
+    const sig = computed.map(p => Math.max(0.5, Math.sqrt(0.05 * 0.05 + 0.10 * 0.10 * p.h / 12) * p.forecast) * (p.name === "R+" ? 1.8 : 1));
     const sv = sig.reduce((a, x) => a + x * x, 0);
     const sh = computed.map(() => []), st = computed.map(() => []);
     const enter = new Array(n).fill(0); let majD = 0, majR = 0;
@@ -579,8 +578,20 @@
       const f1 = x => x.toFixed(1).replace(".", ",");
       const rows = computed.map((p, i) => `<div style="display:grid;grid-template-columns:62px 1fr 52px 1fr;gap:4px;padding:3px 0;border-top:1px solid var(--border)"><b>${p.name}</b><span>${f1(pct(mc.sh[i], .1))}–${f1(pct(mc.sh[i], .9))}%</span><span>${Math.round(mc.enter[i] / mc.N * 100)}%</span><span>${pct(mc.st[i], .1)}–${pct(mc.st[i], .9)} (med. ${pct(mc.st[i], .5)})</span></div>`).join("");
       const warns = computed.filter(p => p.aggAvg != null && Math.abs(p.aggAvg - p.last) > 2).map(p => `⚠ ${p.name}: regresja ${f1(p.last)}% vs średnia agregatorów ${f1(p.aggAvg)}% (różnica ${f1(Math.abs(p.aggAvg - p.last))} pp)`).join("<br>");
-      box.innerHTML = `<div style="font-weight:700;margin-bottom:4px">Scenariusz, nie prognoza (${mc.N} symulacji)</div><div style="color:var(--muted);margin-bottom:6px">Przedziały 80%: udział w głosach ważnych, szansa wejścia do Sejmu (próg 5%) i mandaty. Niepewność rośnie z horyzontem.</div><div style="display:grid;grid-template-columns:62px 1fr 52px 1fr;gap:4px;color:var(--muted)"><span>Partia</span><span>Poparcie</span><span>Próg</span><span>Mandaty</span></div>${rows}<div style="margin-top:8px">Większość 231 mandatów: Partie Demokratyczne <b>${Math.round(mc.majD * 100)}%</b>, Partie Prawicy <b>${Math.round(mc.majR * 100)}%</b></div>${warns ? `<div style="margin-top:6px;color:var(--warn)">${warns}</div>` : ""}`;
+      box.innerHTML = `<div style="font-weight:700;margin-bottom:4px">Scenariusz, nie prognoza (${mc.N} symulacji)</div><div style="color:var(--muted);margin-bottom:6px">Przedziały 80%: udział w głosach ważnych, szansa wejścia do Sejmu (próg 5%) i mandaty. Błąd = ok. 5% udziału w dniu wyborów, ok. 11% udziału rok wcześniej (R+ ×1,8 jako nowa partia) — przyjęte wg typowych błędów średnich sondaży, nie z własnej historii.</div><div style="display:grid;grid-template-columns:62px 1fr 52px 1fr;gap:4px;color:var(--muted)"><span>Partia</span><span>Poparcie</span><span>Próg</span><span>Mandaty</span></div>${rows}<div style="margin-top:8px">Większość 231 mandatów: Partie Demokratyczne <b>${Math.round(mc.majD * 100)}%</b>, Partie Prawicy <b>${Math.round(mc.majR * 100)}%</b></div>${warns ? `<div style="margin-top:6px;color:var(--warn)">${warns}</div>` : ""}`;
     }, 250);
+  }
+
+  // Im bliżej wyborów, tym większą wagę mają bieżące średnie sondaży (limit 0,5 przy h≥24, 0,6 przy h=12, 0,8 przy h=0)
+  function anchorCap(h) { return Math.min(0.85, Math.max(0.5, 0.6 + 0.2 * (12 - h) / 12)); }
+
+  // Ważony trend z ostatnich ≤4 kroków miesięcznych (wagi 0,45/0,25/0,18/0,12) dla szeregu punktów {val, idx}
+  function calcTrend(pts) {
+    const W = [0.45, 0.25, 0.18, 0.12], d = [];
+    for (let m = pts.length - 1; m >= 1 && d.length < 4; m--) if (pts[m].idx - pts[m - 1].idx === 1) d.push(pts[m].val - pts[m - 1].val);
+    if (!d.length) return 0;
+    const u = W.slice(0, d.length), sw = u.reduce((a, b) => a + b, 0);
+    return d.reduce((a, x, i) => a + x * u[i] / sw, 0);
   }
 
   function getAutoPhi(h) {
@@ -661,7 +672,7 @@
       const diffAbs = Math.abs(diffVal);
 
       // Identyczne formuły jak w XLSX v6 (kolumny AL, AM, AE):
-      const wAnchor = hasAvg ? Math.min(0.6, 0.15 + 0.07 * diffAbs) : 0;
+      const wAnchor = hasAvg ? Math.min(anchorCap(h), 0.15 + 0.07 * diffAbs) : 0;
       const startBase = hasAvg ? (last + wAnchor * diffVal) : last;
       const multH = Math.max(0.01, phi * (1 - Math.pow(phi, Math.max(1, h))) / (1 - phi));
       // Gdy średnie agregatorów są po przeciwnej stronie niż trend regresji, trend jest osłabiany proporcjonalnie do wagi kotwicy
@@ -713,6 +724,30 @@
         targetPoint
       };
     });
+
+    // PiS i R+ (rozłam z lipca 2026): trendów indywidualnych nie ekstrapolujemy (przepływ wyborców jest jednorazową anomalią).
+    // Trend liczony jest dla sumy PiS+R+ jak dla pozostałych partii, a podział sumy stopniowo zmierza do proporcji ze średnich agregatorów.
+    const cP = computed.find(x => x.name === "PIS"), cR = computed.find(x => x.name === "R+");
+    if (cP && cR && cP.h === cR.h) {
+      const pP = dataset.find(x => x.name === "PIS"), pR = dataset.find(x => x.name === "R+");
+      const pts = [];
+      pP.rawSeries.forEach((v, i) => { if (typeof v === "number") pts.push({ val: v + (typeof pR.rawSeries[i] === "number" ? pR.rawSeries[i] : 0), idx: i }); });
+      const h = cP.h, lastB = cP.last + cR.last, trB = calcTrend(pts);
+      const hasB = cP.aggAvg != null && cR.aggAvg != null, aggB = hasB ? cP.aggAvg + cR.aggAvg : lastB;
+      const dB = aggB - lastB, wB = hasB ? Math.min(anchorCap(h), 0.15 + 0.07 * Math.abs(dB)) : 0;
+      const startB = lastB + wB * dB, adjB = trB * (dB * trB < 0 ? (1 - wB) : 1);
+      const rNow = cP.last / lastB, rAgg = hasB ? cP.aggAvg / aggB : rNow, RHO = 0.85;
+      for (let j = cP.partyLastIdx + 1; j <= 24; j++) {
+        const st = j - cP.partyLastIdx;
+        const B = Math.max(0, startB + adjB * phi * (1 - Math.pow(phi, st)) / (1 - phi));
+        const r = rNow + (rAgg - rNow) * (1 - Math.pow(RHO, st));
+        cP.projLine[j] = B * r; cR.projLine[j] = B * (1 - r);
+      }
+      [cP, cR].forEach((c, k) => {
+        c.forecast = c.projLine[24] != null ? c.projLine[24] : c.last; c.targetPoint[24] = c.forecast;
+        c.startBase = startB * (k === 0 ? rNow : 1 - rNow); c.trend = trB * (k === 0 ? rNow : 1 - rNow);
+      });
+    }
 
     // Zachowanie sumy poparcia: prognoza jest przeskalowana do sumy punktów startowych (nic nie „znika” do niezdecydowanych)
     const Tn = computed.reduce((a, p) => a + p.startBase, 0);
@@ -1240,7 +1275,8 @@
       const ls = local && local.sources && local.sources[src.key];
       if (ls && Object.keys(ls).length >= 3) {
         dataset.forEach((p, idx) => { if (typeof ls[p.name] === "number") proposed[idx][src.key] = ls[p.name]; });
-        updatedSources.push(`${src.name} (${Object.keys(ls).length} partii, stan z ${String(local.updated || "").slice(0, 16).replace("T", " ")} UTC)`);
+        updatedSources.push(`${src.name} (${Object.keys(ls).length} partii, stan z ${String(local.checked || local.updated || "").slice(0, 16).replace("T", " ")} UTC)`);
+        if (local.status && local.status[src.key] && local.status[src.key] !== "ok") failedSources.push(`${src.name}: ${local.status[src.key]}`);
         continue;
       }
       const content = await fetchTextSmart(src.url);
@@ -1278,14 +1314,6 @@
 
   document.getElementById("syncWebBtn").addEventListener("click", syncAggregatorsFromWeb);
 
-  // Zamknięcie aplikacji: window.close() działa w zainstalowanej aplikacji; w zwykłej karcie przeglądarka może je zablokować
-  document.getElementById("closeBtn").addEventListener("click", () => {
-    window.close();
-    setTimeout(() => {
-      if (history.length > 1) { history.back(); }
-      else { alert("Nie można zamknąć automatycznie. Użyj gestu lub przycisku „Wstecz” w telefonie."); }
-    }, 400);
-  });
 
   // Nawigacja zakładek
   document.querySelectorAll(".tab-btn").forEach(btn => {

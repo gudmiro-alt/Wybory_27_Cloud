@@ -76,18 +76,19 @@ def ewybory(days=30, min_polls=5):
 
 try: old = json.load(open(OUT, encoding="utf-8"))
 except Exception: old = {"sources": {}}
-new = dict(old.get("sources", {})); ok = 0
+new = dict(old.get("sources", {})); ok = 0; status = {}
 for key, fn in (("ewAvg", ewybory), ("apAvg", atlas), ("ppAvg", politpro)):
     try:
         res = fn()
-        if len(res) >= 5: new[key] = res; ok += 1
-        else: print(f"{key}: odczytano tylko {len(res)} partii — zostawiam poprzednie dane")
+        if len(res) >= 5: new[key] = res; ok += 1; status[key] = "ok"
+        else: status[key] = f"odczytano tylko {len(res)} partii"; print(key, status[key])
     except Exception as e:
-        print(f"{key}: błąd {e}")
+        status[key] = f"błąd: {str(e)[:80]}"; print(key, status[key])
     print(key, new.get(key))
-if new != old.get("sources"):
-    json.dump({"updated": dt.datetime.utcnow().isoformat(timespec="seconds") + "Z", "sources": new,
-               "info": {"ewAvg": "średnia prosta z sondaży z ostatnich 30 dni (obliczona z tabeli ewybory.eu)",
-                        "apAvg": "średnia Atlasu Politycznego", "ppAvg": "Trend wyborczy PolitPro"}},
-              open(OUT, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+now = dt.datetime.utcnow().isoformat(timespec="seconds") + "Z"
+changed = new != old.get("sources")
+json.dump({"updated": now if changed or "updated" not in old else old["updated"], "checked": now, "status": status, "sources": new,
+           "info": {"ewAvg": "średnia prosta z sondaży z ostatnich 30 dni (obliczona z tabeli ewybory.eu)",
+                    "apAvg": "średnia Atlasu Politycznego", "ppAvg": "Trend wyborczy PolitPro"}},
+          open(OUT, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
 sys.exit(0 if ok else 1)

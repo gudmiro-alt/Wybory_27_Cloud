@@ -589,8 +589,10 @@
         ds.borderWidth = ds._bw / z;
         if (typeof ds._pr === "number") ds.pointRadius = ds._pr / z;
       });
-      chart.options.plugins = chart.options.plugins || {};
-      chart.options.plugins.tooltip = Object.assign(chart.options.plugins.tooltip || {}, { titleFont: { size: 12 / z }, bodyFont: { size: 12 / z }, padding: 6 / z, boxPadding: 3 / z });
+      // zapis do surowej konfiguracji (nie do proxy opcji Chart.js — przypisanie obiektu-proxy powodowało nieskończoną rekurencję)
+      const o = chart.config.options; o.plugins = o.plugins || {}; o.plugins.tooltip = o.plugins.tooltip || {};
+      o.plugins.tooltip.titleFont = { size: 12 / z }; o.plugins.tooltip.bodyFont = { size: 12 / z };
+      o.plugins.tooltip.padding = 6 / z; o.plugins.tooltip.boxPadding = 3 / z;
     }
   };
 
@@ -1236,7 +1238,9 @@
       const ls = local && local.sources && local.sources[src.key];
       if (ls && Object.keys(ls).length >= 3) {
         dataset.forEach((p, idx) => { if (typeof ls[p.name] === "number") proposed[idx][src.key] = ls[p.name]; });
-        updatedSources.push(`${src.name} (${Object.keys(ls).length} partii, stan z ${String(local.checked || local.updated || "").slice(0, 16).replace("T", " ")} UTC)`);
+        const tsC = Date.parse(local.checked || local.updated || ""), ageH = isNaN(tsC) ? null : (Date.now() - tsC) / 3.6e6;
+        const fmtT = t => String(t || "").slice(0, 16).replace("T", " ") + " UTC";
+        updatedSources.push(`${src.name}: ${Object.keys(ls).length} partii, sprawdzono ${fmtT(local.checked || local.updated)}${ageH != null ? ` (${ageH < 1 ? "<1" : Math.round(ageH)} h temu)` : ""}${ageH != null && ageH > 12 ? " ⚠ NIEAKTUALNE – sprawdź GitHub Actions" : ""}; wartości ostatnio zmieniły się ${fmtT(local.updated)}`);
         if (local.status && local.status[src.key] && local.status[src.key] !== "ok") failedSources.push(`${src.name}: ${local.status[src.key]}`);
         continue;
       }

@@ -87,6 +87,11 @@ for key, fn in (("ewAvg", ewybory), ("apAvg", atlas), ("ppAvg", politpro)):
     print(key, new.get(key))
 now = dt.datetime.utcnow().isoformat(timespec="seconds") + "Z"
 changed = new != old.get("sources")
+try: recent = (dt.datetime.utcnow() - dt.datetime.fromisoformat(old["checked"].rstrip("Z"))).total_seconds() < 5 * 3600
+except Exception: recent = False
+# zapis (a więc i commit) tylko gdy zmieniły się wartości lub statusy albo od ostatniego zapisu minęło ≥5 h — ogranicza liczbę commitów
+if not (changed or status != old.get("status") or not recent):
+    print("brak zmian, ostatni zapis < 5 h temu"); sys.exit(0)
 json.dump({"updated": now if changed or "updated" not in old else old["updated"], "checked": now, "status": status, "sources": new,
            "info": {"ewAvg": "średnia prosta z sondaży z ostatnich 30 dni (obliczona z tabeli ewybory.eu)",
                     "apAvg": "średnia Atlasu Politycznego", "ppAvg": "Trend wyborczy PolitPro"}},

@@ -56,6 +56,9 @@ def canon(name):
         if k in n: return v
     return name.split(" / ")[0].strip()
 
+SPAN = object()   # znacznik: kolejna kolumna zajęta przez scaloną komórkę (colspan)
+txt = lambda c: "" if c is SPAN else c.get_text(" ", strip=True)
+
 def expand(table):
     """Rozwija rowspan/colspan, żeby każdy wiersz miał tyle komórek co nagłówek."""
     rows, pending = [], {}
@@ -69,9 +72,10 @@ def expand(table):
             c = next(it, None)
             if c is None: break
             rs = int(c.get("rowspan", 1) or 1); cs = int(c.get("colspan", 1) or 1)
-            for _ in range(cs):
-                out.append(c)
-                if rs > 1: pending[ci] = [rs - 1, c]
+            for k in range(cs):
+                item = c if k == 0 else SPAN
+                out.append(item)
+                if rs > 1: pending[ci] = [rs - 1, item]
                 ci += 1
         rows.append(out)
     return rows
@@ -96,7 +100,7 @@ def parse_page(html, today=None):
     for t in soup.find_all("table"):
         rows = expand(t)
         if not rows: continue
-        cols = [code_of(c.get_text("", strip=True)) for c in rows[0]]
+        cols = [code_of(txt(c).replace(" ", "")) for c in rows[0]]
         if not {"KO", "PIS"} <= set(cols): continue
         for cells in rows[1:]:
             if len(cells) == len(cols) - 1 and "PSL" in cols:   # brakująca komórka PSL (okres Trzeciej Drogi) = pusta
@@ -119,10 +123,13 @@ def parse_page(html, today=None):
             except Exception as e:
                 bad.append(f"data '{meta['date']}': {e}"); continue
             vals, hyp, notes = {}, [], []
-            for code, c in zip(cols[1:], cells[1:]):
-                if not code: continue
-                v, h, n = parse_cell(c.get_text(" ", strip=True))
+            for i, (code, c) in enumerate(zip(cols, cells)):
+                if i == 0 or c is SPAN or not code: continue
+                v, h, n = parse_cell(txt(c))
                 if v is not None:
+                    # komórka PL2050 scalona z kolumną PSL (colspan=2) = wynik Trzeciej Drogi (PL2050+PSL razem)
+                    if code == "PL2050" and i + 1 < len(cells) and cells[i + 1] is SPAN and cols[i + 1] == "PSL":
+                        code = "TD"; notes.append("TD:PL2050+PSL (komórka scalona)")
                     vals[code] = v
                     if h: hyp.append(code)
                     if n: notes.append(f"{code}:{n}")
@@ -182,7 +189,8 @@ def main():
     if len(polls) < 100 or (old and len(polls) < 0.5 * len(old)):
         print(f"Odczytano tylko {len(polls)} sondaży (poprzednio {len(old)}) — nie nadpisuję pliku"); sys.exit(1)
     seen = {key(p) for p in polls}
-    merged = polls + [p for p in old if key(p) not in seen]   # historia zostaje, nawet gdy strona skróci archiwum
+    lo = min(p["date_end"] for p in polls)   # w zakresie dat odczytanym teraz dane ze strony zastępują stare; starsze wiersze z pliku zostają
+    merged = polls + [p for p in old if p["date_end"] < lo]
     merged.sort(key=lambda p: (p["date_end"], p["pollster"]), reverse=True)
     if old and [key(p) for p in merged] == [key(p) for p in old]:
         print("Brak nowych sondaży — pliki bez zmian"); return

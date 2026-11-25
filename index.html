@@ -480,6 +480,7 @@
     PL2050: "#422006"
   };
 
+  let NORMALIZE = true; // dane z ewybory.eu zawierają niezdecydowanych (suma ≈ 84–95%) — normalizacja do głosów ważnych jak w Atlasie i PolitPro
   const TARGET_IDX = 35; // indeks 0 = gru.24 … 35 = lis.27 (dzień wyborów)
   const MONTHS = Array.from({ length: TARGET_IDX + 1 }, (_, i) => ["sty", "lut", "mar", "kwi", "maj", "cze", "lip", "sie", "wrz", "paź", "lis", "gru"][(11 + i) % 12] + "." + String(24 + Math.floor((11 + i) / 12)).slice(-2));
 
@@ -535,7 +536,7 @@
     const T = computed.reduce((a, p) => a + p.forecast, 0);
     // odchylenie rośnie z udziałem partii (~√p) i z horyzontem; stały składnik 0,6 pp
     const sig = computed.map(p => Math.max(0.5, Math.sqrt(0.05 * 0.05 + 0.10 * 0.10 * p.h / 12) * p.forecast) * (p.name === "R+" ? 1.8 : 1));
-    const gapF = 1 + 2 * Math.abs((100 - OTHER_PCT) - computed.reduce((a, p) => a + p.last, 0)) / (100 - OTHER_PCT);
+    const gapF = 1 + 2 * Math.abs((100 - OTHER_PCT) - computed.reduce((a, p) => a + p.lastRaw, 0)) / (100 - OTHER_PCT);
     for (let i = 0; i < n; i++) sig[i] *= gapF;
     const sv = sig.reduce((a, x) => a + x * x, 0);
     const sh = computed.map(() => []), st = computed.map(() => []);
@@ -563,7 +564,8 @@
       const f1 = x => x.toFixed(1).replace(".", ",");
       const rows = computed.map((p, i) => `<div style="display:grid;grid-template-columns:62px 1fr 52px 1fr;gap:4px;padding:3px 0;border-top:1px solid var(--border)"><b>${p.name}</b><span>${f1(pct(mc.sh[i], .5))} (${f1(pct(mc.sh[i], .1))}–${f1(pct(mc.sh[i], .9))})%</span><span>${Math.round(mc.enter[i] / mc.N * 100)}%</span><span>${pct(mc.st[i], .1)}–${pct(mc.st[i], .9)} (med. ${pct(mc.st[i], .5)})</span></div>`).join("");
       const warns = computed.filter(p => p.aggAvg != null && Math.abs(p.aggAvg - p.last) > 2).map(p => `⚠ ${p.name}: regresja ${f1(p.last)}% vs średnia agregatorów ${f1(p.aggAvg)}% (różnica ${f1(Math.abs(p.aggAvg - p.last))} pp)`).join("<br>");
-      box.innerHTML = `<div style="font-weight:700;margin-bottom:4px">Scenariusz, nie prognoza (${mc.N} symulacji)</div><div style="color:var(--muted);margin-bottom:6px">Poparcie: mediana i przedział 80% na tej samej skali co wykres (środek = prognoza punktowa). Próg 5% i mandaty liczone po przeliczeniu udziałów na głosy ważne. Rozrzut rośnie, gdy suma regresji odbiega od 98,4%. Błąd = ok. 5% udziału w dniu wyborów, ok. 11% udziału rok wcześniej (R+ ×1,8 jako nowa partia) — przyjęte wg typowych błędów średnich sondaży, nie z własnej historii.</div><div style="display:grid;grid-template-columns:62px 1fr 52px 1fr;gap:4px;color:var(--muted)"><span>Partia</span><span>Poparcie</span><span>Próg</span><span>Mandaty</span></div>${rows}<div style="margin-top:8px">Większość 231 mandatów: Partie Demokratyczne <b>${Math.round(mc.majD * 100)}%</b>, Partie Prawicy <b>${Math.round(mc.majR * 100)}%</b></div><div style="margin-top:6px">Suma regresji: <b>${f1(computed.reduce((a, p) => a + p.last, 0))}%</b>, suma prognozy: <b>${f1(computed.reduce((a, p) => a + p.forecast, 0))}%</b> (cel ${f1(100 - OTHER_PCT)}%) – im bliżej celu, tym mniejszy rozrzut.</div>${warns ? `<div style="margin-top:6px;color:var(--warn)">${warns}</div>` : ""}`;
+      box.innerHTML = `<div style="font-weight:700;margin-bottom:4px">Scenariusz, nie prognoza (${mc.N} symulacji)</div><div style="color:var(--muted);margin-bottom:6px">Poparcie: mediana i przedział 80% na tej samej skali co wykres (środek = prognoza punktowa). Próg 5% i mandaty liczone po przeliczeniu udziałów na głosy ważne. Rozrzut rośnie, gdy suma regresji odbiega od 98,4%. Błąd = ok. 5% udziału w dniu wyborów, ok. 11% udziału rok wcześniej (R+ ×1,8 jako nowa partia) — przyjęte wg typowych błędów średnich sondaży, nie z własnej historii.</div><div style="display:grid;grid-template-columns:62px 1fr 52px 1fr;gap:4px;color:var(--muted)"><span>Partia</span><span>Poparcie</span><span>Próg</span><span>Mandaty</span></div>${rows}<div style="margin-top:8px">Większość 231 mandatów: Partie Demokratyczne <b>${Math.round(mc.majD * 100)}%</b>, Partie Prawicy <b>${Math.round(mc.majR * 100)}%</b></div><div style="margin-top:6px">Suma regresji (surowej): <b>${f1(computed.reduce((a, p) => a + p.lastRaw, 0))}%</b>, suma prognozy: <b>${f1(computed.reduce((a, p) => a + p.forecast, 0))}%</b> (cel ${f1(100 - OTHER_PCT)}%) – im bliżej celu, tym mniejszy rozrzut.</div><label style="display:block;margin-top:6px"><input type="checkbox" id="normChk" ${NORMALIZE ? "checked" : ""}> Normalizuj dane ewybory.eu do głosów ważnych (bez niezdecydowanych)</label>${warns ? `<div style="margin-top:6px;color:var(--warn)">${warns}</div>` : ""}`;
+    box.querySelector("#normChk").onchange = e => { NORMALIZE = e.target.checked; renderAll(); };
     }, 250);
   }
 
@@ -621,14 +623,30 @@
     const phi = getAutoPhi(hMain);
 
     // Średnie agregatorów: średnia ze źródeł, następnie normalizacja do sumy 100% minus inne komitety (gdy dostępne dla wszystkich partii)
-    const aggRaw = dataset.map(p => {
-      const v = [p.ewAvg, p.apAvg, p.ppAvg].filter(x => typeof x === "number" && !isNaN(x));
-      return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null;
+    // Normalizacja do skali głosów ważnych: każdy miesiąc regresji i średnich miesięcznych oraz każde źródło agregatora skalowane do 100% − inne komitety
+    const TOT = 100 - OTHER_PCT;
+    const normCols = key => {
+      const out = dataset.map(() => new Array(TARGET_IDX + 1).fill(null));
+      for (let t = 0; t <= TARGET_IDX; t++) {
+        let S = 0;
+        dataset.forEach(p => { const v = p[key] && p[key][t]; if (typeof v === "number") S += v; });
+        dataset.forEach((p, i) => { const v = p[key] && p[key][t]; if (typeof v === "number") out[i][t] = (NORMALIZE && S > 0) ? v * TOT / S : v; });
+      }
+      return out;
+    };
+    const nS = normCols("rawSeries"), nM = normCols("mAvg");
+    const dsN = dataset.map((p, i) => ({ ...p, orig: p.rawSeries, rawSeries: nS[i], mAvg: nM[i] }));
+    const srcNorm = ["ewAvg", "apAvg", "ppAvg"].map(k => {
+      const all = dataset.every(p => typeof p[k] === "number");
+      const S = dataset.reduce((a, p) => a + (typeof p[k] === "number" ? p[k] : 0), 0);
+      const f = (NORMALIZE && all && S > 0) ? TOT / S : 1;
+      return dataset.map(p => typeof p[k] === "number" ? p[k] * f : null);
     });
+    const aggRaw = dataset.map((p, i) => { const v = srcNorm.map(a => a[i]).filter(x => x != null); return v.length ? v.reduce((a, c) => a + c, 0) / v.length : null; });
     const sumAgg = aggRaw.reduce((a, x) => a + (x || 0), 0);
     const kAgg = (aggRaw.every(x => x != null) && sumAgg > 0) ? (100 - OTHER_PCT) / sumAgg : 1;
 
-    const computed = dataset.map((p, pi) => {
+    const computed = dsN.map((p, pi) => {
       const validPoints = [];
       p.rawSeries.forEach((v, idx) => {
         if (typeof v === "number" && !isNaN(v)) validPoints.push({ val: v, idx });
@@ -714,6 +732,7 @@
         forecast,
         isNear5,
         startBase,
+        lastRaw: p.orig[partyLastIdx],
         aggAvg: hasAvg ? aggAvg : null,
         seats: 0,
         histLine,

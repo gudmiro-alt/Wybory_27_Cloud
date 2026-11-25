@@ -47,6 +47,35 @@ def parse_range(s, end_year):
         start = end
     return start, end, False
 
+CANON = [("united surveys", "United Surveys"), ("research partner", "Research Partner"), ("resarch parnert", "Research Partner"),
+         ("pollster", "Pollster"), ("ibris", "IBRiS"), ("opinia24", "Opinia24"), ("cbos", "CBOS"), ("ogb", "OGB"),
+         ("ipsos", "Ipsos"), ("arc rynek", "ARC Rynek i Opinia"), ("cbm", "CBM Indicator"), ("ibsp", "IBSP")]
+def canon(name):
+    n = name.lower()
+    for k, v in CANON:
+        if k in n: return v
+    return name.split(" / ")[0].strip()
+
+def expand(table):
+    """Rozwija rowspan/colspan, żeby każdy wiersz miał tyle komórek co nagłówek."""
+    rows, pending = [], {}
+    for tr in table.find_all("tr"):
+        it, out, ci = iter(tr.find_all(["th", "td"])), [], 0
+        while True:
+            if ci in pending:
+                out.append(pending[ci][1]); pending[ci][0] -= 1
+                if pending[ci][0] == 0: del pending[ci]
+                ci += 1; continue
+            c = next(it, None)
+            if c is None: break
+            rs = int(c.get("rowspan", 1) or 1); cs = int(c.get("colspan", 1) or 1)
+            for _ in range(cs):
+                out.append(c)
+                if rs > 1: pending[ci] = [rs - 1, c]
+                ci += 1
+        rows.append(out)
+    return rows
+
 def parse_meta(cell):
     a = cell.find("a")
     url = a["href"] if a is not None and a.get("href", "#") not in ("#", "") else None
@@ -65,13 +94,14 @@ def parse_page(html, today=None):
     polls, bad = [], []
     year, prev_m, first = today.year, None, True
     for t in soup.find_all("table"):
-        rows = t.find_all("tr")
+        rows = expand(t)
         if not rows: continue
-        cols = [code_of(c.get_text("", strip=True)) for c in rows[0].find_all(["th", "td"])]
+        cols = [code_of(c.get_text("", strip=True)) for c in rows[0]]
         if not {"KO", "PIS"} <= set(cols): continue
-        for tr in rows[1:]:
-            cells = tr.find_all(["th", "td"])
-            if len(cells) != len(cols): bad.append("liczba kolumn: " + tr.get_text(" ", strip=True)[:80]); continue
+        for cells in rows[1:]:
+            if len(cells) == len(cols) - 1 and "PSL" in cols:   # brakująca komórka PSL (okres Trzeciej Drogi) = pusta
+                cells = cells[:cols.index("PSL")] + [BeautifulSoup("<td></td>", "html.parser").td] + cells[cols.index("PSL"):]
+            if len(cells) != len(cols): bad.append("liczba kolumn: " + " ".join(c.get_text(" ", strip=True) for c in cells)[:80]); continue
             meta = parse_meta(cells[0])
             if not meta["date"]: bad.append("brak daty: " + meta["name"]); continue
             try:
@@ -96,8 +126,11 @@ def parse_page(html, today=None):
                     vals[code] = v
                     if h: hyp.append(code)
                     if n: notes.append(f"{code}:{n}")
+            # do 20.06.2025 kolumna „PL2050” przy pustej kolumnie PSL zawiera wynik Trzeciej Drogi (PL2050+PSL razem)
+            if "PL2050" in vals and "PSL" not in vals and "PSL" in cols and end.isoformat() < "2025-06-21":
+                vals["TD"] = vals.pop("PL2050"); notes.append("TD:z kolumny PL2050")
             polls.append({"date_start": start.isoformat(), "date_end": end.isoformat(), "date_kind": meta["kind"],
-                          "pollster": meta["name"], "n": meta["n"], "url": meta["url"], "election": meta["election"],
+                          "pollster": meta["name"], "pollster_id": canon(meta["name"]), "n": meta["n"], "url": meta["url"], "election": meta["election"],
                           "rplus_column": "R+" in cols, "rplus_listed": "R+" in vals,
                           "hypothetical": hyp, "notes": notes, "values": vals})
     return polls, bad
@@ -114,7 +147,7 @@ def report(polls, bad, prev_count):
           f"- Wierszy odrzuconych przy odczycie: {len(bad)}; poprzednia liczba w pliku: {prev_count}"]
     by_year = collections.Counter(d[:4] for d in ds)
     L += ["\n## Liczba sondaży wg roku", "| rok | sondaży |", "|---|---|"] + [f"| {y} | {n} |" for y, n in sorted(by_year.items())]
-    pc = collections.Counter(p["pollster"].split(" / ")[0] for p in real)
+    pc = collections.Counter(p["pollster_id"] for p in real)
     L += ["\n## Pracownie (liczba sondaży)", ", ".join(f"{k}: {v}" for k, v in pc.most_common())]
     L += ["\n## Pokrycie partii", "| partia | pierwszy | ostatni | sondaży |", "|---|---|---|---|"]
     for c in PARTIES:
@@ -134,7 +167,7 @@ def report(polls, bad, prev_count):
     L.append(f"\n## Podejrzane sumy wyników (<80% lub >102%): {len(odd)}")
     L += [f"- {s[1]} {s[2]}: {s[0]}%" for s in odd[:15]]
     mm = collections.defaultdict(set)
-    for p in real: mm[p["date_end"][:7]].add(p["pollster"].split(" / ")[0])
+    for p in real: mm[p["date_end"][:7]].add(p["pollster_id"])
     L += ["\n## Sondaże i pracownie w ostatnich 24 miesiącach", "| miesiąc | sondaży | pracowni |", "|---|---|---|"]
     cnt = collections.Counter(p["date_end"][:7] for p in real)
     for m in sorted(cnt)[-24:]: L.append(f"| {m} | {cnt[m]} | {len(mm[m])} |")

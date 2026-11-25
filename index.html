@@ -412,7 +412,7 @@
       <div class="card-title">
         <span>Założenia modelu</span>
       </div>
-      <div class="status-note">φ (tłumienie trendu) dobierane automatycznie i płynnie wg liczby miesięcy do 11/2027 (ok. 0,80 daleko od wyborów, 0,85 przy 5–8 mies., 0,75 w ostatnich 4). Trend: ważona średnia ostatnich 6 zmian miesięcznych regresji (30/22/17/13/10/8%). Średnie sondaży (miesięczne i bieżąca agregatorów) korygują poziom startowy tylko wtedy, gdy przez kilka miesięcy odchylają się od regresji w tę samą stronę; waga rośnie od 0,10 (rok do wyborów) do 0,70 (dzień wyborów). Każda partia podąża za własną regresją, suma nie jest wymuszana. Mandaty: D\'Hondt w 41 okręgach (profile regionalne wg ewybory.eu), próg 5% od głosów ważnych. Pod wykresem: symulacja 3000 losowań.</div>
+      <div class="status-note">φ (tłumienie trendu) dobierane automatycznie i płynnie wg liczby miesięcy do 11/2027 (ok. 0,80 daleko od wyborów, 0,85 przy 5–8 mies., 0,75 w ostatnich 4). Trend: ważona średnia ostatnich 6 zmian miesięcznych regresji (30/22/17/13/10/8%). Średnie sondaży (miesięczne i bieżąca agregatorów) korygują poziom startowy tylko wtedy, gdy przez kilka miesięcy odchylają się od regresji w tę samą stronę; waga rośnie od 0,10 (rok do wyborów) do 0,70 (dzień wyborów). Każda partia podąża za własną regresją, suma nie jest wymuszana. Rozłam PiS/R+ (04/2026) przerywa szereg PiS: trend liczony tylko z danych po rozłamie. Mandaty: D\'Hondt w 41 okręgach (profile regionalne wg ewybory.eu), próg 5% od głosów ważnych. Pod wykresem: symulacja 3000 losowań.</div>
     </div>
   </section>
 
@@ -480,6 +480,10 @@
     PL2050: "#422006"
   };
 
+  // Rozłamy: PiS → PiS + R+ (R+ notowane od 04/2026): szereg PiS przerwany, nowy od indeksu 16; wcześniejszy obejmuje wyborców R+.
+  // Trzecia Droga (do 05/2025) → PSL + PL2050 (od 06/2025); KPP wydzielone z KONF (05/2025). TD nie jest partią modelu — służy tylko do sum przy normalizacji.
+  const SERIES_BREAK = { PIS: 16 };
+  const EXTRA_SERIES = { TD: [8.3, 7.9, 7.5, 7.2, 6.9, 6.6, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null] };
   let NORMALIZE = true; // dane z ewybory.eu zawierają niezdecydowanych (suma ≈ 84–95%) — normalizacja do głosów ważnych jak w Atlasie i PolitPro
   const TARGET_IDX = 35; // indeks 0 = gru.24 … 35 = lis.27 (dzień wyborów)
   const MONTHS = Array.from({ length: TARGET_IDX + 1 }, (_, i) => ["sty", "lut", "mar", "kwi", "maj", "cze", "lip", "sie", "wrz", "paź", "lis", "gru"][(11 + i) % 12] + "." + String(24 + Math.floor((11 + i) / 12)).slice(-2));
@@ -489,12 +493,12 @@
     { name: "KO",     bloc: "Demokratyczny", rawSeries: [31.7, 31.7, 31.7, 31.7, 31.7, 31.7, 31.6, 31.5, 31.5, 31.4, 31.4, 31.3, 31.3, 31.2, 31.2, 31.2, 31.2, 31.2, 31.2, 31.2, 31.3, 31.3, 31.4, 31.5], mAvg: [null, null, null, null, null, null, null, null, null, null, null, null, null, 32.7, 31.6, 32.5, 33.3, 33.1, 31, 29.4, 28.6, 31, 32.4], ewAvg: 31.60, apAvg: 32.40, ppAvg: 32.60, visible: true },
     { name: "PIS",    bloc: "Prawica",       rawSeries: [29.8, 29.7, 29.6, 29.5, 29.3, 29.1, 28.9, 28.7, 28.4, 28.1, 27.8, 27.4, 27, 26.5, 26, 25.4, 24.7, 24, 23.2, 22.3, 21.4, 20.3, 19.2, 18], mAvg: [null, null, null, null, null, null, null, null, null, null, null, null, null, 26.1, 24.2, 24.6, 23.7, 24.5, 24.4, 21, 19, 18.9, 21.3], ewAvg: 20.20, apAvg: 21.90, ppAvg: 22.20, visible: true },
     { name: "KONF",   bloc: "Prawica",       rawSeries: [13.1, 13.3, 13.4, 13.5, 13.6, 13.7, 13.8, 13.8, 13.8, 13.8, 13.8, 13.7, 13.7, 13.6, 13.5, 13.4, 13.3, 13.2, 13.1, 13, 12.9, 12.8, 12.7, 12.5], mAvg: [null, null, null, null, null, null, null, null, null, null, null, null, null, 11.9, 13.1, 12.4, 12.8, 13, 12.4, 13.6, 13.2, 13.7, 12.4], ewAvg: 13.30, apAvg: 14.10, ppAvg: 13.70, visible: true },
-    { name: "KPP",    bloc: "Prawica",       rawSeries: [null, null, null, null, null, 3.8, 4.5, 5, 5.6, 6.1, 6.6, 7, 7.4, 7.7, 8, 8.2, 8.5, 8.6, 8.7, 8.8, 8.9, 8.9, 8.8, 8.7], mAvg: [null, null, null, null, null, null, null, null, null, null, null, null, null, 8.4, 8.5, 8.5, 8, 8.3, 8.2, 9.6, 8.7, 8.5, 9.3],  ewAvg: 8.50,  apAvg: 9.10,  ppAvg: 8.50,  visible: true },
-    { name: "LEWICA", bloc: "Demokratyczny", rawSeries: [8.3, 7.2, 7.5, 7.2, 6.9, 6.7, 6.6, 6.5, 6.4, 6.3, 6.2, 6.2, 6.1, 6.1, 6.1, 6.1, 6.2, 6.2, 6.3, 6.4, 6.6, 6.8, 7, 7.3], mAvg: [null, null, null, null, null, null, null, null, null, null, null, null, null, 6.6, 6.4, 5.9, 6.7, 6.8, 7.3, 7.2, 6.1, 7.2, 6.2],  ewAvg: 6.40,  apAvg: 7.30,  ppAvg: 7.30,  visible: true },
-    { name: "R+",     bloc: "Prawica",       rawSeries: [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, 5.4, 5.2, 5.1, 4.9, 4.8], mAvg: [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, 6, 5.4, 5.1, 4.7],  ewAvg: 4.60,  apAvg: 4.70,  ppAvg: 4.70,  visible: false },
+    { name: "KPP",    bloc: "Prawica",       rawSeries: [null, null, null, null, null, 3.8, 4.5, 5, 5.6, 6.1, 6.6, 7, 7.4, 7.7, 8, 8.2, 8.5, 8.6, 8.7, 8.8, 8.9, 8.8, 8.8, 8.7], mAvg: [null, null, null, null, null, null, null, null, null, null, null, null, null, 8.4, 8.5, 8.5, 8, 8.3, 8.2, 9.6, 8.7, 8.5, 9.3],  ewAvg: 8.50,  apAvg: 9.10,  ppAvg: 8.50,  visible: true },
+    { name: "LEWICA", bloc: "Demokratyczny", rawSeries: [7.4, 7.2, 7.1, 7, 6.9, 6.8, 6.7, 6.6, 6.4, 6.3, 6.2, 6.2, 6.1, 6.1, 6.1, 6.1, 6.2, 6.2, 6.3, 6.4, 6.6, 6.8, 7, 7.3], mAvg: [null, null, null, null, null, null, null, null, null, null, null, null, null, 6.6, 6.4, 5.9, 6.7, 6.8, 7.3, 7.2, 6.1, 7.2, 6.2],  ewAvg: 6.40,  apAvg: 7.30,  ppAvg: 7.30,  visible: true },
+    { name: "R+",     bloc: "Prawica",       rawSeries: [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, 5.9, 5.7, 5.6, 5.4, 5.2, 5.1, 4.9, 4.8], mAvg: [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, 5.5, 5.7, 5.9, 6, 5.4, 5.1, 4.7],  ewAvg: 4.60,  apAvg: 4.70,  ppAvg: 4.70,  visible: false },
     { name: "PSL",    bloc: "Demokratyczny", rawSeries: [null, null, null, null, null, null, 3, 2.9, 2.9, 2.8, 2.8, 2.8, 2.8, 2.8, 2.8, 2.8, 2.8, 2.9, 2.9, 2.9, 3, 3.1, 3.2, 3.3], mAvg: [null, null, null, null, null, null, null, null, null, null, null, null, null, 2.7, 2.9, 3.1, 3.2, 3.2, 3, 3.3, 2.5, 2.8, 3.4],  ewAvg: null,  apAvg: 3.00,  ppAvg: 3.50,  visible: false },
     { name: "RAZEM",  bloc: "Demokratyczny", rawSeries: [1.6, 1.9, 2.2, 2.5, 2.8, 3, 3.2, 3.4, 3.6, 3.7, 3.9, 3.9, 4, 4.1, 4.1, 4.1, 4.1, 4, 4, 3.9, 3.7, 3.6, 3.4, 3.2], mAvg: [null, null, null, null, null, null, null, null, null, null, null, null, null, 3.7, 3.9, 3.2, 4.2, 3.2, 3.6, 3.6, 3.7, 4.1, 3.7],  ewAvg: null,  apAvg: 4.40,  ppAvg: 4.20,  visible: false },
-    { name: "PL2050", bloc: "Demokratyczny", rawSeries: [null, null, null, null, null, null, null, null, 3.1, 2.8, 2.6, 2.4, 2.2, 2, 1.8, 1.7, 1.6, 1.5, 1.4, 1.4, 1.3, 1.3, 1.3, 1.4], mAvg: [null, null, null, null, null, null, null, null, null, null, null, null, null, 2.2, 2.4, 1.4, 1.5, 1.9, 1.5, 1.3, 1.4, 1.1, 1.3],  ewAvg: null,  apAvg: 1.70,  ppAvg: 1.70,  visible: false }
+    { name: "PL2050", bloc: "Demokratyczny", rawSeries: [null, null, null, null, null, null, 3.7, 3.4, 3.1, 2.8, 2.6, 2.4, 2.2, 2, 1.8, 1.7, 1.6, 1.5, 1.4, 1.4, 1.3, 1.3, 1.3, 1.4], mAvg: [null, null, null, null, null, null, null, null, null, null, null, null, null, 2.2, 2.4, 1.4, 1.5, 1.9, 1.5, 1.3, 1.4, 1.1, 1.3],  ewAvg: null,  apAvg: 1.70,  ppAvg: 1.70,  visible: false }
   ];
 
   let lastMonthIdx = 23; // indeks 23 = lis.26
@@ -630,6 +634,7 @@
       for (let t = 0; t <= TARGET_IDX; t++) {
         let S = 0;
         dataset.forEach(p => { const v = p[key] && p[key][t]; if (typeof v === "number") S += v; });
+        if (key === "rawSeries") Object.values(EXTRA_SERIES).forEach(a => { if (typeof a[t] === "number") S += a[t]; });
         dataset.forEach((p, i) => { const v = p[key] && p[key][t]; if (typeof v === "number") out[i][t] = (NORMALIZE && S > 0) ? v * TOT / S : v; });
       }
       return out;
@@ -649,7 +654,7 @@
     const computed = dsN.map((p, pi) => {
       const validPoints = [];
       p.rawSeries.forEach((v, idx) => {
-        if (typeof v === "number" && !isNaN(v)) validPoints.push({ val: v, idx });
+        if (typeof v === "number" && !isNaN(v) && idx >= (SERIES_BREAK[p.name] || 0)) validPoints.push({ val: v, idx });
       });
 
       const lastObj = validPoints[validPoints.length - 1];
@@ -901,6 +906,8 @@
       datasets.push({
         label: `${p.name} (regresja)`,
         data: p.histLine,
+        spanGaps: false,
+        segment: { borderColor: c => (SERIES_BREAK[p.name] && c.p0DataIndex === SERIES_BREAK[p.name] - 1) ? "transparent" : undefined },
         borderColor: color,
         backgroundColor: color,
         borderWidth: 1.7,

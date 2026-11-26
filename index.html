@@ -3,191 +3,202 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<title>Scenariusz Sejm 2027</title>
 <meta name="theme-color" content="#0f172a" />
 <link rel="manifest" href="manifest.webmanifest" />
 <link rel="icon" href="icon-192.png" />
+<title>Scenariusz Sejm 2027</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <style>
-  :root { --bg:#0f172a; --card:#1e293b; --text:#e2e8f0; --muted:#94a3b8; --border:#334155; --accent:#3b82f6; --warn:#fbbf24; --bad:#f87171; --ok:#4ade80;
-          padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); box-sizing: border-box; }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-size: 15px; line-height: 1.4; padding: 10px; max-width: 760px; margin: 0 auto; }
-  header { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; }
-  h1 { font-size: 1.15rem; } h2 { font-size: .98rem; margin-bottom: 6px; }
+  :root { --bg:#0f172a; --card:#1e293b; --card-light:#334155; --text:#f8fafc; --muted:#94a3b8; --dem:#38bdf8; --dem-bg:rgba(56,189,248,.14); --right:#f87171; --right-bg:rgba(248,113,113,.14); --warn:#fbbf24; --ok:#4ade80; --accent:#14b8a6; --border:rgba(148,163,184,.18); }
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  body { background: var(--bg); color: var(--text); padding: 14px 14px 44px; max-width: 560px; margin: 0 auto; padding-top: max(14px, env(safe-area-inset-top, 0px)); }
+  header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  h1 { font-size: 1.12rem; }
+  button { background: var(--accent); color: #04211d; font-weight: 700; border: 0; border-radius: 10px; padding: 8px 12px; font-size: .8rem; cursor: pointer; }
+  button.sec { background: var(--card-light); color: var(--text); }
   .card { background: var(--card); border-radius: 14px; padding: 12px; margin-bottom: 10px; }
-  .muted { color: var(--muted); font-size: .78rem; }
-  button { background: var(--accent); color: #fff; border: 0; border-radius: 10px; padding: 8px 12px; font-size: .85rem; cursor: pointer; }
-  button.sec { background: #334155; }
-  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
-  .chip { border: 2px solid var(--c); background: transparent; color: var(--text); border-radius: 999px; padding: 4px 10px; font-size: .78rem; }
-  .chip.on { background: var(--c); color: #0b1220; font-weight: 600; }
-  .chartbox { position: relative; height: 300px; }
-  table { width: 100%; border-collapse: collapse; font-size: .8rem; }
-  th, td { padding: 5px 3px; text-align: right; border-top: 1px solid var(--border); } th:first-child, td:first-child { text-align: left; }
-  th { color: var(--muted); font-weight: 500; border-top: 0; }
-  .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; }
-  .bar { height: 12px; border-radius: 6px; background: #334155; overflow: hidden; margin: 3px 0 8px; } .bar > i { display: block; height: 100%; }
-  .warn { color: var(--warn); } .bad { color: var(--bad); } .ok { color: var(--ok); }
-  details summary { cursor: pointer; font-weight: 600; font-size: .9rem; } details p, details li { font-size: .8rem; color: var(--muted); margin-top: 6px; } details ul { padding-left: 18px; }
+  .card-title { display: flex; justify-content: space-between; font-size: .84rem; font-weight: 700; margin-bottom: 6px; } .card-title span:last-child { color: var(--muted); font-weight: 500; font-size: .74rem; }
+  .muted { color: var(--muted); font-size: .72rem; } .warn { color: var(--warn); } .ok { color: var(--ok); }
+  #status { font-size: .74rem; color: var(--muted); line-height: 1.5; }
+  nav { display: flex; gap: 6px; margin-bottom: 10px; } .tab-btn { flex: 1; background: var(--card); color: var(--muted); font-weight: 600; } .tab-btn.active { background: var(--accent); color: #04211d; }
+  .tab-view { display: none; } .tab-view.active { display: block; }
+  .sejm-bar-wrap { position: relative; height: 36px; background: #0f172a; border-radius: 9px; overflow: hidden; display: flex; margin: 8px 0 6px; border: 1px solid rgba(148,163,184,.2); }
+  .party-seg { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; border-right: 1px solid rgba(15,23,42,.65); line-height: 1; }
+  .seg-name { font-size: .5rem; font-weight: 800; white-space: nowrap; } .seg-seats { font-size: .66rem; font-weight: 800; white-space: nowrap; }
+  .majority-line { position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; background: #facc15; box-shadow: 0 0 6px rgba(250,204,21,.85); z-index: 4; }
+  .bloc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+  .bloc-box { padding: 10px; border-radius: 12px; } .bloc-box.dem { background: var(--dem-bg); border: 1px solid rgba(56,189,248,.3); } .bloc-box.right { background: var(--right-bg); border: 1px solid rgba(248,113,113,.3); }
+  .bloc-name { font-size: .74rem; font-weight: 700; } .dem .bloc-name { color: var(--dem); } .right .bloc-name { color: var(--right); }
+  .bloc-seats { font-size: 1.35rem; font-weight: 800; margin: 2px 0; } .bloc-sub { font-size: .7rem; color: var(--muted); line-height: 1.35; }
+  .party-row { padding: 9px 0; border-bottom: 1px solid var(--border); } .party-row:last-child { border-bottom: 0; padding-bottom: 0; }
+  .party-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; gap: 6px; }
+  .party-left { display: flex; align-items: center; gap: 7px; } .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .party-name { font-weight: 700; font-size: .94rem; } .badge { font-size: .64rem; padding: 2px 6px; border-radius: 6px; font-weight: 700; background: rgba(148,163,184,.16); color: var(--muted); }
+  .party-right { display: flex; align-items: center; gap: 8px; } .pct { font-weight: 800; font-size: .96rem; } .diff { font-size: .72rem; color: var(--muted); }
+  .seats-pill { background: var(--card-light); border-radius: 7px; min-width: 62px; padding: 2px 6px; text-align: center; line-height: 1.15; } .seats-pill.active { background: #1e3a8a; color: #93c5fd; }
+  .seats-pill b { display: block; font-size: .8rem; } .seats-pill small { display: block; font-size: .6rem; opacity: .85; }
+  .prog-track { width: 100%; height: 6px; background: #0f172a; border-radius: 4px; overflow: hidden; } .prog-fill { height: 100%; border-radius: 4px; }
+  .party-sub { font-size: .66rem; color: var(--muted); margin-top: 4px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px; }
+  .chip { border: 2px solid var(--c); background: transparent; color: var(--text); border-radius: 999px; padding: 4px 10px; font-size: .74rem; font-weight: 600; } .chip.on { background: var(--c); color: #0b1220; }
+  .chartbox { position: relative; height: 320px; }
+  details summary { cursor: pointer; font-weight: 700; font-size: .84rem; } details ul { padding-left: 18px; } details li { font-size: .76rem; color: var(--muted); margin-top: 6px; }
 </style>
 </head>
 <body>
-<header>
-  <h1>Scenariusz Sejm 2027</h1>
-  <button id="refreshBtn">🔄 Odśwież</button>
-</header>
-<div id="status" class="card muted">Ładowanie…</div>
+<header><h1>Scenariusz Sejm 2027</h1><button id="refreshBtn">🔄 Odśwież</button></header>
+<div class="card" id="status">Ładowanie…</div>
+<nav><button class="tab-btn active" data-tab="t1">📊 Mandaty i Wyniki</button><button class="tab-btn" data-tab="t2">📈 Wykres Trendów</button></nav>
 
-<div class="card">
-  <h2>Poparcie: historia i scenariusz do dnia wyborów</h2>
-  <div class="chips" id="chips"></div>
-  <label class="muted"><input type="checkbox" id="bandChk"> pokaż przedziały 80% (scenariusz)</label>
-  <div class="chartbox"><canvas id="mainChart"></canvas></div>
-  <div class="muted" style="margin-top:4px">Linia ciągła: model na podstawie sondaży. Przerywana: scenariusz. Przerwa dla PiS i R+: lipiec 2026 (zmiana definicji — R+ podawane w sondażach).</div>
-</div>
-
-<div class="card">
-  <h2>Wynik w dniu wyborów (scenariusz) i mandaty</h2>
-  <table id="tbl"></table>
-  <div class="muted" style="margin-top:6px">Udział w głosach ważnych, mediana i przedział 80%. Mandaty: D'Hondt w 41 okręgach, próg 5%.</div>
-</div>
-
-<div class="card" id="majCard"></div>
-
-<div class="card">
-  <h2>Dokąd zmierza prognoza</h2>
-  <div class="muted" style="margin-bottom:4px">Prognoza wyniku w dniu wyborów wyliczona na dzień wskazany na osi (model uruchomiony na danych dostępnych wtedy).</div>
-  <div class="chartbox" style="height:240px"><canvas id="histChart"></canvas></div>
-  <div id="changes" style="margin-top:8px"></div>
-</div>
-
-<div class="card">
-  <details><summary>Jak to działa i czego nie robi</summary>
-  <ul>
+<section id="t1" class="tab-view active">
+  <div class="card">
+    <div class="card-title"><span>Mandaty (D'Hondt w 41 okręgach)</span><span>Większość: 231</span></div>
+    <div class="sejm-bar-wrap" id="seatBar"></div>
+    <div class="bloc-grid">
+      <div class="bloc-box dem"><div class="bloc-name">DEMOKRATYCZNE</div><div class="bloc-seats" id="demSeats">0</div><div class="bloc-sub" id="demSub"></div></div>
+      <div class="bloc-box right"><div class="bloc-name">PRAWICA</div><div class="bloc-seats" id="rightSeats">0</div><div class="bloc-sub" id="rightSub"></div></div>
+    </div>
+    <div class="muted" id="noMaj" style="margin-top:6px"></div>
+  </div>
+  <div class="card">
+    <div class="card-title"><span>Scenariusz na listopad 2027</span><span>Poparcie / Mandaty</span></div>
+    <div id="partyList"></div>
+  </div>
+  <div class="card" id="changes"></div>
+  <div class="card"><details><summary>Jak to działa i czego nie robi</summary><ul>
     <li>Wejście: surowe sondaże z ewybory.eu (pobierane automatycznie). Każdy sondaż jest przeliczany na głosy ważne, a wyniki pracowni korygowane o ich stałe odchylenia.</li>
     <li>Model: filtr Kalmana z lokalnym trendem, który z czasem wygasa. Parametry dobrane w backteście na sondażach od 10.2023.</li>
     <li>Rozłamy (PiS/R+, KONF/KKP, TD/PSL+PL2050) liczone jako sumy, potem dzielone na partie. R+ ma krótką historię, więc na razie bez trendu.</li>
-    <li>Przedziały dotyczą średniej sondaży, nie wyniku wyborów — sondaże mają własny błąd systematyczny, którego tu nie ma. Przedziały maleją w miarę zbliżania się wyborów.</li>
-    <li>Data wyborów (14.11.2027) to założenie robocze.</li>
-    <li>To scenariusz oparty na sondażach, nie przewidywanie wyniku.</li>
-  </ul></details>
-</div>
+    <li>Mandaty w pasku: D'Hondt dla mediany poparcia (partie poniżej 5% = 0). Przedziały i szanse większości: z 4000 symulacji; zakres „80%” to środkowe 80% wyników.</li>
+    <li>Przedziały dotyczą średniej sondaży, nie wyniku wyborów — sondaże mają własny błąd systematyczny, którego tu nie ma. Maleją w miarę zbliżania się wyborów.</li>
+    <li>Data wyborów (14.11.2027) to założenie robocze. To scenariusz oparty na sondażach, nie przewidywanie wyniku.</li></ul></details></div>
+</section>
+
+<section id="t2" class="tab-view">
+  <div class="card">
+    <div class="card-title"><span>Poparcie: historia i scenariusz do lis.27</span><span>Dotknij partię, aby ukryć/pokazać</span></div>
+    <div class="chips" id="chips"></div>
+    <label class="muted"><input type="checkbox" id="bandChk"> pokaż przedziały 80% scenariusza</label>
+    <div class="chartbox"><canvas id="mainChart"></canvas></div>
+    <div class="muted" style="margin-top:6px">Linia ciągła: model na podstawie sondaży. Przerywana: scenariusz do dnia wyborów. Żółta kropkowana: próg 5%. Przerwa dla PiS i R+ w lipcu 2026: zmiana definicji (R+ zaczęto podawać w sondażach).</div>
+  </div>
+</section>
 
 <script>
 (function () {
   const COLORS = { KO: "#f97316", PIS: "#3b82f6", KONF: "#94a3b8", KPP: "#dc2626", LEWICA: "#f43f5e", RAZEM: "#c084fc", PSL: "#22c55e", "R+": "#06b6d4", PL2050: "#eab308" };
-  const LBL = { KO: "KO", PIS: "PiS", KONF: "Konfederacja", KPP: "KKP", LEWICA: "Lewica", RAZEM: "Razem", PSL: "PSL", "R+": "R+", PL2050: "PL2050" };
+  const LBL = { KO: "KO", PIS: "PiS", KONF: "KONF", KPP: "KKP", LEWICA: "Lewica", RAZEM: "Razem", PSL: "PSL", "R+": "R+", PL2050: "PL2050" };
+  const DARK = new Set(["KONF", "PL2050", "PSL", "R+"]);
   const SNAP_KEY = "scenariusz_sejm_snapshot_v1";
-  let F = null, H = [], active = new Set(), main = null, hist = null;
+  let F = null, active = new Set(), main = null;
   const f1 = x => (x == null ? "–" : x.toFixed(1).replace(".", ","));
   const fd = s => { const [y, m, d] = String(s).slice(0, 10).split("-"); return `${d}.${m}.${y}`; };
-  const ftime = s => String(s || "").slice(0, 16).replace("T", " ") + " UTC";
+  const $ = id => document.getElementById(id);
 
   // Przy powiększeniu strony grubość linii i okno podpowiedzi zachowują wielkość jak przy 100%; wykres jest przerysowywany ostro
   const zoomPlugin = { id: "zoomScale", beforeUpdate(chart) {
     const z = Math.max(1, (window.visualViewport && visualViewport.scale) || 1);
-    chart.data.datasets.forEach(ds => { if (ds._bw === undefined) { ds._bw = ds.borderWidth === undefined ? 2 : ds.borderWidth; ds._pr = ds.pointRadius; } ds.borderWidth = ds._bw / z; if (typeof ds._pr === "number") ds.pointRadius = ds._pr / z; });
+    chart.data.datasets.forEach(ds => { if (ds._bw === undefined) ds._bw = ds.borderWidth === undefined ? 2 : ds.borderWidth; ds.borderWidth = ds._bw / z; });
     const o = chart.config.options; o.plugins = o.plugins || {}; o.plugins.tooltip = o.plugins.tooltip || {};
     Object.assign(o.plugins.tooltip, { titleFont: { size: 12 / z }, bodyFont: { size: 12 / z }, padding: 6 / z, boxPadding: 3 / z });
   } };
-  if (window.visualViewport) { let t = null; visualViewport.addEventListener("resize", () => { clearTimeout(t); t = setTimeout(() => { [main, hist].forEach(c => { if (c) { c.options.devicePixelRatio = (window.devicePixelRatio || 1) * Math.max(1, visualViewport.scale); c.resize(); c.update("none"); } }); }, 200); }); }
-
-  const baseOpts = () => ({ responsive: true, maintainAspectRatio: false, animation: false, devicePixelRatio: (window.devicePixelRatio || 1) * Math.max(1, (window.visualViewport && visualViewport.scale) || 1),
-    interaction: { mode: "index", intersect: false },
-    plugins: { legend: { display: false }, tooltip: { filter: it => !it.dataset._band, callbacks: { label: c => c.parsed.y == null ? null : `${c.dataset.label}: ${f1(c.parsed.y)}%` } } },
-    scales: { x: { ticks: { color: "#94a3b8", maxRotation: 0, autoSkip: true, maxTicksLimit: 9 }, grid: { color: "#1e293b" } }, y: { ticks: { color: "#94a3b8", callback: v => v + "%" }, grid: { color: "#334155" }, suggestedMin: 0 } } });
+  if (window.visualViewport) { let t = null; visualViewport.addEventListener("resize", () => { clearTimeout(t); t = setTimeout(() => { if (main) { main.options.devicePixelRatio = (window.devicePixelRatio || 1) * Math.max(1, visualViewport.scale); main.resize(); main.update("none"); } }, 200); }); }
 
   function drawMain() {
-    const showBand = document.getElementById("bandChk").checked, ds = [];
+    if (!F || !$("t2").classList.contains("active")) return;
+    const band = $("bandChk").checked, ds = [];
     Object.keys(F.parties).filter(p => active.has(p)).forEach(p => {
       const q = F.parties[p], c = COLORS[p];
-      ds.push({ label: LBL[p], data: q.hist, borderColor: c, backgroundColor: c, borderWidth: 2.2, pointRadius: 2, tension: 0.25, spanGaps: false });
-      ds.push({ label: LBL[p] + " (scenariusz)", data: q.proj, borderColor: c, borderDash: [6, 4], borderWidth: 2, pointRadius: 0, tension: 0.25 });
-      if (showBand) {
+      ds.push({ label: LBL[p], data: q.hist, borderColor: c, backgroundColor: c, borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, tension: 0.25, spanGaps: false });
+      ds.push({ label: LBL[p] + " (scenariusz)", data: q.proj, borderColor: c, borderDash: [6, 4], borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, tension: 0.25 });
+      if (band) {
         ds.push({ label: LBL[p] + " dół", data: q.lo, borderColor: "transparent", pointRadius: 0, fill: false, _band: true });
         ds.push({ label: LBL[p] + " góra", data: q.hi, borderColor: "transparent", pointRadius: 0, backgroundColor: c + "30", fill: "-1", _band: true });
       }
     });
     ds.push({ label: "próg 5%", data: F.months.map(() => 5), borderColor: "#facc15", borderDash: [2, 4], borderWidth: 1, pointRadius: 0 });
     if (main) main.destroy();
-    main = new Chart(document.getElementById("mainChart"), { type: "line", data: { labels: F.months, datasets: ds }, options: baseOpts(), plugins: [zoomPlugin] });
+    main = new Chart($("mainChart"), { type: "line", data: { labels: F.months, datasets: ds }, plugins: [zoomPlugin], options: {
+      responsive: true, maintainAspectRatio: false, animation: false, devicePixelRatio: (window.devicePixelRatio || 1) * Math.max(1, (window.visualViewport && visualViewport.scale) || 1),
+      interaction: { mode: "index", intersect: false },
+      plugins: { legend: { display: false }, tooltip: { filter: it => !it.dataset._band, callbacks: { label: c => c.parsed.y == null ? null : `${c.dataset.label}: ${f1(c.parsed.y)}%` } } },
+      scales: { x: { ticks: { color: "#94a3b8", maxRotation: 0, autoSkip: true, maxTicksLimit: 9 }, grid: { color: "#1e293b" } }, y: { ticks: { color: "#94a3b8", callback: v => v + "%" }, grid: { color: "#334155" }, suggestedMin: 0 } } } });
   }
 
-  function drawHist() {
-    const labels = H.map(e => fd(e.date).slice(0, 5) + "." + e.date.slice(2, 4)), ds = [];
-    Object.keys(F.parties).filter(p => active.has(p)).forEach(p => {
-      const data = H.map(e => {
-        if ((p === "PIS" || p === "R+") && e.date >= "2026-07-01" && e.date < "2026-08-15" && p === "PIS") return null;   // zmiana definicji PiS
-        return e.forecast[p] ? e.forecast[p][0] : null;
-      });
-      ds.push({ label: LBL[p], data, borderColor: COLORS[p], backgroundColor: COLORS[p], borderWidth: 2, pointRadius: 2, tension: 0.2, spanGaps: false });
+  function renderSeats() {
+    const E = F.election, M = F.majority, order = Object.keys(E).filter(p => E[p].seats && E[p].seats.pt > 0);
+    const dem = order.filter(p => F.bloc[p] === "D").sort((a, b) => E[b].seats.pt - E[a].seats.pt), rt = order.filter(p => F.bloc[p] !== "D").sort((a, b) => E[b].seats.pt - E[a].seats.pt);
+    const bar = $("seatBar"); bar.innerHTML = '<div class="majority-line" title="Większość 231"></div>';
+    [...dem, ...rt].forEach(p => {
+      const s = E[p].seats.pt, w = s / 460 * 100, seg = document.createElement("div");
+      seg.className = "party-seg"; seg.style.width = w + "%"; seg.style.background = COLORS[p]; seg.style.color = DARK.has(p) ? "#0b1220" : "#fff"; seg.title = `${LBL[p]}: ${s} mandatów`;
+      if (w >= 4.5) seg.innerHTML = `<span class="seg-name">${LBL[p]}</span><span class="seg-seats">${s}</span>`; else if (w >= 2.2) seg.innerHTML = `<span class="seg-seats">${s}</span>`;
+      bar.appendChild(seg);
     });
-    if (hist) hist.destroy();
-    const o = baseOpts(); o.scales.x.ticks.maxTicksLimit = 7;
-    hist = new Chart(document.getElementById("histChart"), { type: "line", data: { labels, datasets: ds }, options: o, plugins: [zoomPlugin] });
+    const sum = (list, k) => list.reduce((a, p) => a + E[p][k], 0), all = Object.keys(E);
+    const dP = all.filter(p => F.bloc[p] === "D"), rP = all.filter(p => F.bloc[p] !== "D");
+    $("demSeats").textContent = M.mandaty_D.pt; $("rightSeats").textContent = M.mandaty_P.pt;
+    $("demSub").innerHTML = `${f1(sum(dP, "forecast"))}% poparcia (${f1(M.mandaty_D.pt / 4.6)}% Sejmu)<br>zakres 80%: ${M.mandaty_D.lo80}–${M.mandaty_D.hi80}<br>szansa 231+: <b>${Math.round(M.demokratyczny * 100)}%</b>`;
+    $("rightSub").innerHTML = `${f1(sum(rP, "forecast"))}% poparcia (${f1(M.mandaty_P.pt / 4.6)}% Sejmu)<br>zakres 80%: ${M.mandaty_P.lo80}–${M.mandaty_P.hi80}<br>szansa 231+: <b>${Math.round(M.prawica * 100)}%</b>`;
+    $("noMaj").textContent = `Żadna większość: ${Math.round(M.zadna * 100)}% symulacji. Pasek: D'Hondt dla mediany poparcia.`;
   }
 
-  function renderTable() {
-    const E = F.election, ps = Object.keys(E).sort((a, b) => E[b].forecast - E[a].forecast);
-    let h = "<tr><th>Partia</th><th>Teraz</th><th>Wybory</th><th>80%</th><th>Próg</th><th>Mandaty</th></tr>";
-    ps.forEach(p => { const r = E[p], s = r.seats;
-      h += `<tr><td><span class="dot" style="background:${COLORS[p]}"></span>${LBL[p]}</td><td>${f1(r.now)}</td><td><b>${f1(r.forecast)}</b></td><td>${f1(r.lo80)}–${f1(r.hi80)}</td><td>${Math.round(r.p_threshold * 100)}%</td><td>${s ? `<b>${s.med}</b> (${s.lo80}–${s.hi80})` : "–"}</td></tr>`; });
-    document.getElementById("tbl").innerHTML = h;
-  }
-
-  function renderMaj() {
-    const m = F.majority, box = document.getElementById("majCard");
-    if (!m) { box.innerHTML = ""; return; }
-    const row = (name, p, col, seats) => `<div><b>${name}</b>: szansa większości 231 mandatów <b>${Math.round(p * 100)}%</b> <span class="muted">(mandaty ${seats.med}, 80%: ${seats.lo80}–${seats.hi80})</span></div><div class="bar"><i style="width:${p * 100}%;background:${col}"></i></div>`;
-    box.innerHTML = `<h2>Większość w Sejmie (scenariusz)</h2>${row("Partie demokratyczne (KO, Lewica, Razem, PSL, PL2050)", m.demokratyczny, "#f97316", m.mandaty_D)}${row("Partie prawicy (PiS, Konfederacja, KKP, R+)", m.prawica, "#3b82f6", m.mandaty_P)}<div class="muted">Żadna większość: ${Math.round(m.zadna * 100)}%</div>`;
+  function renderList() {
+    const E = F.election, ps = Object.keys(E).sort((a, b) => E[b].forecast - E[a].forecast), mx = Math.max(...ps.map(p => E[p].forecast), 35), box = $("partyList"); box.innerHTML = "";
+    ps.forEach(p => {
+      const r = E[p], s = r.seats, inS = s && s.pt > 0, diff = r.forecast - r.now, row = document.createElement("div"); row.className = "party-row";
+      row.innerHTML = `<div class="party-top"><div class="party-left"><span class="dot" style="background:${COLORS[p]}"></span><span class="party-name">${LBL[p]}</span>${inS ? "" : '<span class="badge">&lt;5%</span>'}</div>
+        <div class="party-right"><span class="diff">${diff >= 0 ? "+" : ""}${f1(diff)}</span><span class="pct">${f1(r.forecast)}%</span>
+        <span class="seats-pill ${inS ? "active" : ""}"><b>${s ? s.pt : 0} m.</b><small>${s ? s.lo80 + "–" + s.hi80 : ""}</small></span></div></div>
+        <div class="prog-track"><div class="prog-fill" style="width:${Math.min(100, r.forecast / mx * 100)}%;background:${COLORS[p]}"></div></div>
+        <div class="party-sub">teraz ${f1(r.now)}% · przedział 80%: ${f1(r.lo80)}–${f1(r.hi80)}% · szansa progu: ${Math.round(r.p_threshold * 100)}%</div>`;
+      box.appendChild(row);
+    });
   }
 
   function renderChanges() {
     const cur = {}; Object.keys(F.election).forEach(p => cur[p] = F.election[p].forecast);
     let snap = null; try { snap = JSON.parse(localStorage.getItem(SNAP_KEY) || "null"); } catch (e) {}
-    const box = document.getElementById("changes");
-    let h = "";
-    if (snap && snap.last_poll !== F.last_poll) {
+    let h = '<div class="card-title"><span>Zmiany od ostatniej wizyty</span></div>';
+    if (!snap) h += '<div class="muted">Brak zapisanego poprzedniego stanu — zmiany pojawią się po następnej aktualizacji.</div>';
+    else if (snap.last_poll === F.last_poll) h += `<div class="muted">Brak nowych sondaży od ostatniej wizyty (stan z ${fd(snap.last_poll)}).</div>`;
+    else {
       const ch = Object.keys(cur).filter(p => snap.f[p] != null && Math.abs(cur[p] - snap.f[p]) >= 0.1).sort((a, b) => Math.abs(cur[b] - snap.f[b]) - Math.abs(cur[a] - snap.f[a]));
-      h = `<div><b>Zmiany od ostatniej wizyty</b> <span class="muted">(sondaże do ${fd(snap.last_poll)} → ${fd(F.last_poll)})</span></div>` + (ch.length ? ch.map(p => { const d = cur[p] - snap.f[p]; return `<div>${LBL[p]}: ${f1(snap.f[p])} → <b>${f1(cur[p])}</b> <span class="${d > 0 ? "ok" : "bad"}">${d > 0 ? "+" : ""}${f1(d)}</span></div>`; }).join("") : `<div class="muted">Brak istotnych zmian (≥ 0,1 pp).</div>`);
-    } else if (!snap) h = `<div class="muted">Brak zapisanego poprzedniego stanu — zmiany pojawią się po następnej aktualizacji.</div>`;
-    else h = `<div class="muted">Brak nowych sondaży od ostatniej wizyty (stan z ${fd(snap.last_poll)}).</div>`;
-    box.innerHTML = h + `<div style="margin-top:6px"><button class="sec" id="saveSnap">Zapamiętaj ten stan jako przeczytany</button></div>`;
-    document.getElementById("saveSnap").onclick = () => { try { localStorage.setItem(SNAP_KEY, JSON.stringify({ last_poll: F.last_poll, f: cur })); } catch (e) {} renderChanges(); };
+      h += `<div class="muted">sondaże do ${fd(snap.last_poll)} → ${fd(F.last_poll)}</div>` + (ch.length ? ch.map(p => { const d = cur[p] - snap.f[p]; return `<div style="font-size:.8rem">${LBL[p]}: ${f1(snap.f[p])} → <b>${f1(cur[p])}</b> <span style="color:${d > 0 ? "var(--ok)" : "#f87171"}">${d > 0 ? "+" : ""}${f1(d)}</span></div>`; }).join("") : '<div class="muted">Brak istotnych zmian (≥ 0,1 pp).</div>');
+    }
+    $("changes").innerHTML = h + '<div style="margin-top:8px"><button class="sec" id="saveSnap">Zapamiętaj ten stan jako przeczytany</button></div>';
+    $("saveSnap").onclick = () => { try { localStorage.setItem(SNAP_KEY, JSON.stringify({ last_poll: F.last_poll, f: cur })); } catch (e) {} renderChanges(); };
   }
 
   function renderStatus() {
-    const ageH = (Date.now() - Date.parse(F.generated)) / 3.6e6, days = Math.round((Date.parse(F.election_date) - Date.now()) / 864e5);
-    const stale = ageH > 12;
-    document.getElementById("status").innerHTML =
-      `Sondaże do <b>${fd(F.last_poll)}</b> (${F.polls_used} sondaży) · model przeliczony ${ftime(F.generated)} (${ageH < 1 ? "<1" : Math.round(ageH)} h temu)` +
-      (stale ? `<div class="warn">⚠ NIEAKTUALNE — ostatni zapis starszy niż 12 h; sprawdź GitHub Actions (zakładka Actions → „Aktualizuj sondaże”).</div>` : `<div class="ok">✓ aktualizacja działa (dane odświeżane automatycznie co kilka godzin)</div>`) +
-      `<div>Do wyborów (zał. ${fd(F.election_date)}): ok. ${days} dni · horyzont ${F.horizon_weeks} tyg.</div>`;
+    const ageH = (Date.now() - Date.parse(F.generated)) / 3.6e6, days = Math.round((Date.parse(F.election_date) - Date.now()) / 864e5), stale = ageH > 12;
+    $("status").innerHTML = `Sondaże do <b>${fd(F.last_poll)}</b> (${F.polls_used} sondaży) · model: ${F.generated.slice(0, 16).replace("T", " ")} UTC (${ageH < 1 ? "<1" : Math.round(ageH)} h temu)` +
+      (stale ? '<br><span class="warn">⚠ NIEAKTUALNE — ostatni zapis starszy niż 12 h; sprawdź GitHub Actions („Aktualizuj sondaże”).</span>' : '<br><span class="ok">✓ aktualizacja działa</span>') +
+      ` · do wyborów (zał. ${fd(F.election_date)}) ok. ${days} dni`;
   }
 
   function renderChips() {
-    const box = document.getElementById("chips"); box.innerHTML = "";
+    const box = $("chips"); box.innerHTML = "";
     Object.keys(F.election).sort((a, b) => F.election[b].forecast - F.election[a].forecast).forEach(p => {
       const b = document.createElement("button"); b.className = "chip" + (active.has(p) ? " on" : ""); b.style.setProperty("--c", COLORS[p]); b.textContent = LBL[p];
-      b.onclick = () => { active.has(p) ? active.delete(p) : active.add(p); b.classList.toggle("on"); drawMain(); drawHist(); };
-      box.appendChild(b);
+      b.onclick = () => { active.has(p) ? active.delete(p) : active.add(p); b.classList.toggle("on"); drawMain(); }; box.appendChild(b);
     });
   }
 
   async function load() {
-    const st = document.getElementById("status");
     try {
-      const t = Date.now();
-      const [a, b] = await Promise.all([fetch("forecast.json?t=" + t, { cache: "no-store" }), fetch("forecast_history.json?t=" + t, { cache: "no-store" })]);
-      if (!a.ok) throw new Error("brak pliku forecast.json (HTTP " + a.status + ")");
-      F = await a.json(); H = b.ok ? await b.json() : [];
-    } catch (e) { st.innerHTML = `<span class="bad">Nie udało się wczytać prognozy: ${e.message}. Sprawdź, czy workflow „Aktualizuj sondaże” utworzył forecast.json.</span>`; return; }
+      const r = await fetch("forecast.json?t=" + Date.now(), { cache: "no-store" });
+      if (!r.ok) throw new Error("brak pliku forecast.json (HTTP " + r.status + ")");
+      F = await r.json();
+    } catch (e) { $("status").innerHTML = `<span style="color:#f87171">Nie udało się wczytać prognozy: ${e.message}. Sprawdź, czy workflow „Aktualizuj sondaże” utworzył forecast.json.</span>`; return; }
     if (!active.size) Object.keys(F.election).forEach(p => active.add(p));
-    renderStatus(); renderChips(); renderTable(); renderMaj(); drawMain(); drawHist(); renderChanges();
+    renderStatus(); renderSeats(); renderList(); renderChanges(); renderChips(); drawMain();
   }
-  document.getElementById("refreshBtn").onclick = load;
-  document.getElementById("bandChk").onchange = () => F && drawMain();
+  document.querySelectorAll(".tab-btn").forEach(b => b.onclick = () => {
+    document.querySelectorAll(".tab-btn").forEach(x => x.classList.toggle("active", x === b));
+    document.querySelectorAll(".tab-view").forEach(v => v.classList.toggle("active", v.id === b.dataset.tab)); drawMain();
+  });
+  $("refreshBtn").onclick = load; $("bandChk").onchange = drawMain;
   load();
 })();
 </script>

@@ -156,6 +156,8 @@ def run(P, delta, origin, nsims=4000, seed=7, full=True):
     full_seats = full and ("kid_R+" in S)
     if full_seats:
         st = seats_mc(sims)
+        medv = np.median(sims, axis=0); medv = medv * TOT / medv.sum()    # punktowy podział mandatów = D'Hondt dla median poparcia (jak w poprzedniej aplikacji; partie < 5% mają 0)
+        pt = seats_mc(medv[None, :])[0]
         nowarr = np.array([[ (nowv[p] or 0) if p in present else 0 for p in P_ORDER]]); nowarr *= TOT / nowarr.sum()
         sn = seats_mc(nowarr)[0]
     for j, p in enumerate(P_ORDER):
@@ -167,7 +169,7 @@ def run(P, delta, origin, nsims=4000, seed=7, full=True):
             if name in S and sign == 1: tr = float(S[name].x[1]) * 4.33; break
         r["trend_month"] = None if tr is None else round(tr, 2)
         if full_seats:
-            q = st[:, j]; r["seats"] = {"now": int(sn[j]), "med": int(np.median(q)), "lo80": int(np.quantile(q, .1)), "hi80": int(np.quantile(q, .9)), "p_any": round(float((q > 0).mean()), 3)}
+            q = st[:, j]; r["seats"] = {"now": int(sn[j]), "pt": int(pt[j]), "med": int(np.median(q)), "lo80": int(np.quantile(q, .1)), "hi80": int(np.quantile(q, .9)), "p_any": round(float((q > 0).mean()), 3)}
         res[p] = r
         pp = out["parties"][p]; i = n - 1                                   # ostatni miesiąc = dzień wyborów: przedziały z symulacji
         pp["proj"][i] = r["forecast"]; pp["lo"] = [None] * n; pp["hi"] = [None] * n
@@ -181,8 +183,8 @@ def run(P, delta, origin, nsims=4000, seed=7, full=True):
         dm = sum(st[:, j] for j, p in enumerate(P_ORDER) if BLOC[p] == "D" and p in present); pr = sum(st[:, j] for j, p in enumerate(P_ORDER) if BLOC[p] == "P" and p in present)
         out["majority"] = {"demokratyczny": round(float((dm >= 231).mean()), 3), "prawica": round(float((pr >= 231).mean()), 3),
                            "zadna": round(float(((dm < 231) & (pr < 231)).mean()), 3),
-                           "mandaty_D": {"med": int(np.median(dm)), "lo80": int(np.quantile(dm, .1)), "hi80": int(np.quantile(dm, .9))},
-                           "mandaty_P": {"med": int(np.median(pr)), "lo80": int(np.quantile(pr, .1)), "hi80": int(np.quantile(pr, .9))}}
+                           "mandaty_D": {"pt": int(sum(pt[j] for j, p in enumerate(P_ORDER) if BLOC[p] == "D")), "med": int(np.median(dm)), "lo80": int(np.quantile(dm, .1)), "hi80": int(np.quantile(dm, .9))},
+                           "mandaty_P": {"pt": int(sum(pt[j] for j, p in enumerate(P_ORDER) if BLOC[p] == "P")), "med": int(np.median(pr)), "lo80": int(np.quantile(pr, .1)), "hi80": int(np.quantile(pr, .9))}}
     out["horizon_weeks"] = he; out["kappa"] = round(kap, 2)
     return out
 

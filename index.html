@@ -1,1372 +1,195 @@
 <!DOCTYPE html>
 <html lang="pl">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="icon" href="icon-192.png" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="mobile-web-app-capable" content="yes" />
-  <meta name="theme-color" content="#0f172a" />
-  <title>Scenariusz Sejm 2027</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
-  <style>
-    :root {
-      --bg: #0f172a;
-      --card: #1e293b;
-      --card-light: #334155;
-      --text: #f8fafc;
-      --muted: #94a3b8;
-      --dem: #38bdf8;
-      --dem-bg: rgba(56, 189, 248, 0.14);
-      --right: #f87171;
-      --right-bg: rgba(248, 113, 113, 0.14);
-      --warn: #fbbf24;
-      --warn-bg: rgba(251, 191, 36, 0.14);
-      --accent: #14b8a6;
-      --border: rgba(148, 163, 184, 0.18);
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-    body {
-      background: var(--bg);
-      color: var(--text);
-      padding: 14px 14px 44px;
-      max-width: 560px;
-      margin: 0 auto;
-    }
-    header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 12px;
-    }
-    h1 { font-size: 1.18rem; font-weight: 700; letter-spacing: -0.02em; }
-    .subtitle { font-size: 0.73rem; color: var(--muted); margin-top: 2px; }
-    .header-actions {
-      display: flex;
-      gap: 6px;
-      flex-shrink: 0;
-    }
-    .action-btn {
-      background: var(--accent);
-      color: #042f2e;
-      font-weight: 700;
-      font-size: 0.74rem;
-      padding: 7px 10px;
-      border-radius: 10px;
-      border: none;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      box-shadow: 0 2px 8px rgba(20, 184, 166, 0.25);
-    }
-    .action-btn.secondary {
-      background: #38bdf8;
-      color: #082f49;
-      box-shadow: 0 2px 8px rgba(56, 189, 248, 0.25);
-    }
-    .action-btn:disabled {
-      opacity: 0.6;
-      cursor: wait;
-    }
-    input[type="file"] { display: none; }
-
-    /* Nawigacja zakładek */
-    .tabs {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 6px;
-      background: var(--card);
-      padding: 5px;
-      border-radius: 12px;
-      border: 1px solid var(--border);
-      margin-bottom: 12px;
-    }
-    .tab-btn {
-      background: transparent;
-      color: var(--muted);
-      border: none;
-      padding: 9px 10px;
-      border-radius: 9px;
-      font-size: 0.82rem;
-      font-weight: 700;
-      cursor: pointer;
-      transition: all 0.2s ease;
-    }
-    .tab-btn.active {
-      background: var(--card-light);
-      color: var(--text);
-      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
-    }
-    .tab-view { display: none; }
-    .tab-view.active { display: block; }
-
-    .card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 14px;
-      margin-bottom: 12px;
-    }
-    .card-title {
-      font-size: 0.74rem;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: var(--muted);
-      font-weight: 700;
-      margin-bottom: 10px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    /* Pasek poziomy dla wszystkich partii z mandatami */
-    .sejm-bar-wrap {
-      position: relative;
-      height: 36px;
-      background: #0f172a;
-      border-radius: 9px;
-      overflow: hidden;
-      display: flex;
-      margin: 8px 0 6px;
-      border: 1px solid rgba(148, 163, 184, 0.2);
-    }
-    .party-seg {
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      overflow: hidden;
-      border-right: 1px solid rgba(15, 23, 42, 0.65);
-      transition: width 0.35s ease;
-      padding: 0 1px;
-      line-height: 1.0;
-    }
-    .party-seg:last-of-type { border-right: none; }
-    .seg-name {
-      font-size: 0.50rem;
-      font-weight: 800;
-      text-transform: uppercase;
-      letter-spacing: 0.01em;
-      white-space: nowrap;
-    }
-    .seg-seats {
-      font-size: 0.66rem;
-      font-weight: 800;
-      white-space: nowrap;
-    }
-    .majority-line {
-      position: absolute;
-      left: 50%;
-      top: 0;
-      bottom: 0;
-      width: 2px;
-      background: #facc15;
-      box-shadow: 0 0 6px rgba(250, 204, 21, 0.85);
-      z-index: 4;
-    }
-    .seg-legend {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px 10px;
-      margin-top: 6px;
-      margin-bottom: 6px;
-      font-size: 0.71rem;
-      color: var(--muted);
-    }
-    .seg-legend-item {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      font-weight: 600;
-    }
-
-    .bloc-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-      margin-top: 8px;
-    }
-    .bloc-box { padding: 10px; border-radius: 12px; }
-    .bloc-box.dem { background: var(--dem-bg); border: 1px solid rgba(56, 189, 248, 0.3); }
-    .bloc-box.right { background: var(--right-bg); border: 1px solid rgba(248, 113, 113, 0.3); }
-    .bloc-name { font-size: 0.74rem; font-weight: 700; }
-    .bloc-box.dem .bloc-name { color: var(--dem); }
-    .bloc-box.right .bloc-name { color: var(--right); }
-    .bloc-seats { font-size: 1.35rem; font-weight: 800; margin: 2px 0; }
-    .bloc-sub { font-size: 0.72rem; color: var(--muted); }
-
-    .party-row {
-      padding: 9px 0;
-      border-bottom: 1px solid var(--border);
-    }
-    .party-row:last-child { border-bottom: none; padding-bottom: 0; }
-    .party-top {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 5px;
-    }
-    .party-left { display: flex; align-items: center; gap: 7px; }
-    .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-    .party-name { font-weight: 700; font-size: 0.94rem; }
-    .badge {
-      font-size: 0.64rem;
-      padding: 2px 6px;
-      border-radius: 6px;
-      font-weight: 700;
-    }
-    .badge-out { background: rgba(148, 163, 184, 0.16); color: var(--muted); }
-    .party-right { text-align: right; display: flex; align-items: baseline; gap: 7px; }
-    .pct { font-weight: 800; font-size: 0.96rem; }
-    .seats-pill {
-      background: var(--card-light);
-      font-size: 0.74rem;
-      font-weight: 700;
-      padding: 2px 7px;
-      border-radius: 6px;
-      min-width: 52px;
-      text-align: center;
-    }
-    .seats-pill.active { background: #1e3a8a; color: #93c5fd; }
-    .prog-track {
-      width: 100%;
-      height: 6px;
-      background: #0f172a;
-      border-radius: 4px;
-      overflow: hidden;
-    }
-    .prog-fill { height: 100%; border-radius: 4px; transition: width 0.35s ease; }
-
-    .auto-toggle {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      background: #0f172a;
-      padding: 9px 11px;
-      border-radius: 10px;
-      margin-bottom: 8px;
-      font-size: 0.8rem;
-    }
-    .ctrl-box { background: #0f172a; padding: 9px 11px; border-radius: 10px; }
-    .ctrl-lbl { font-size: 0.74rem; color: var(--muted); display: flex; justify-content: space-between; margin-bottom: 5px; }
-    input[type="range"] { width: 100%; accent-color: var(--accent); }
-    .status-note { font-size: 0.72rem; color: var(--muted); text-align: center; margin-top: 8px; line-height: 1.35; }
-
-    /* Status aktualizacji z sieci */
-    .sync-banner {
-      background: #0f172a;
-      border: 1px solid rgba(56, 189, 248, 0.25);
-      border-radius: 10px;
-      padding: 8px 10px;
-      margin-bottom: 12px;
-      font-size: 0.73rem;
-      color: var(--muted);
-      display: none;
-      line-height: 1.4;
-    }
-    .sync-banner.visible { display: block; }
-
-    /* Zakładka Wykres */
-    .filter-chips {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      margin-bottom: 10px;
-    }
-    .chip {
-      border: 1px solid var(--border);
-      background: #0f172a;
-      color: var(--muted);
-      font-size: 0.73rem;
-      font-weight: 700;
-      padding: 5px 9px;
-      border-radius: 8px;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      transition: all 0.15s ease;
-    }
-    .chip.active {
-      color: var(--text);
-      border-color: rgba(255,255,255,0.35);
-      background: var(--card-light);
-    }
-    .chart-box {
-      position: relative;
-      height: 335px;
-      width: 100%;
-    }
-    .legend-guide {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 6px;
-      margin-top: 10px;
-      padding-top: 10px;
-      border-top: 1px solid var(--border);
-      font-size: 0.74rem;
-      color: var(--muted);
-    }
-    .legend-item {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .sym-line {
-      width: 22px;
-      height: 1.8px;
-      background: var(--text);
-      display: inline-block;
-    }
-    .sym-dash {
-      width: 22px;
-      height: 0;
-      border-top: 1.8px dashed var(--accent);
-      display: inline-block;
-    }
-    .sym-thresh {
-      width: 22px;
-      height: 2.5px;
-      background: #facc15;
-      display: inline-block;
-    }
-    .sym-diamond {
-      width: 10px;
-      height: 10px;
-      background: #fbbf24;
-      transform: rotate(45deg);
-      display: inline-block;
-      margin: 0 6px;
-    }
-    .sym-target {
-      width: 11px;
-      height: 11px;
-      border-radius: 50%;
-      border: 2.5px solid #ffffff;
-      background: var(--accent);
-      display: inline-block;
-      margin: 0 5px;
-    }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Scenariusz Sejm 2027</title>
+<meta name="theme-color" content="#0f172a" />
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="icon" href="icon-192.png" />
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<style>
+  :root { --bg:#0f172a; --card:#1e293b; --text:#e2e8f0; --muted:#94a3b8; --border:#334155; --accent:#3b82f6; --warn:#fbbf24; --bad:#f87171; --ok:#4ade80;
+          padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); box-sizing: border-box; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-size: 15px; line-height: 1.4; padding: 10px; max-width: 760px; margin: 0 auto; }
+  header { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; }
+  h1 { font-size: 1.15rem; } h2 { font-size: .98rem; margin-bottom: 6px; }
+  .card { background: var(--card); border-radius: 14px; padding: 12px; margin-bottom: 10px; }
+  .muted { color: var(--muted); font-size: .78rem; }
+  button { background: var(--accent); color: #fff; border: 0; border-radius: 10px; padding: 8px 12px; font-size: .85rem; cursor: pointer; }
+  button.sec { background: #334155; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+  .chip { border: 2px solid var(--c); background: transparent; color: var(--text); border-radius: 999px; padding: 4px 10px; font-size: .78rem; }
+  .chip.on { background: var(--c); color: #0b1220; font-weight: 600; }
+  .chartbox { position: relative; height: 300px; }
+  table { width: 100%; border-collapse: collapse; font-size: .8rem; }
+  th, td { padding: 5px 3px; text-align: right; border-top: 1px solid var(--border); } th:first-child, td:first-child { text-align: left; }
+  th { color: var(--muted); font-weight: 500; border-top: 0; }
+  .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; }
+  .bar { height: 12px; border-radius: 6px; background: #334155; overflow: hidden; margin: 3px 0 8px; } .bar > i { display: block; height: 100%; }
+  .warn { color: var(--warn); } .bad { color: var(--bad); } .ok { color: var(--ok); }
+  details summary { cursor: pointer; font-weight: 600; font-size: .9rem; } details p, details li { font-size: .8rem; color: var(--muted); margin-top: 6px; } details ul { padding-left: 18px; }
+</style>
 </head>
 <body>
+<header>
+  <h1>Scenariusz Sejm 2027</h1>
+  <button id="refreshBtn">🔄 Odśwież</button>
+</header>
+<div id="status" class="card muted">Ładowanie…</div>
 
-  <header>
-    <div>
-      <h1>Scenariusz Sejm 2027</h1>
-      <div class="subtitle" id="dataStatus">Baza: lis.26 → cel: lis.27 (h=12) • AUTO φ=0,80</div>
-    </div>
-    <div class="header-actions">
-      <button class="action-btn secondary" id="syncWebBtn" title="Pobierz bieżące średnie sondaży z agregatorów">
-        🔄 Aktualizuj
-      </button>
-      <button class="action-btn" id="regBtn" title="Wpisz wartości regresji ewybory.eu">➕ Regresja</button>
-    </div>
-  </header>
+<div class="card">
+  <h2>Poparcie: historia i scenariusz do dnia wyborów</h2>
+  <div class="chips" id="chips"></div>
+  <label class="muted"><input type="checkbox" id="bandChk"> pokaż przedziały 80% (scenariusz)</label>
+  <div class="chartbox"><canvas id="mainChart"></canvas></div>
+  <div class="muted" style="margin-top:4px">Linia ciągła: model na podstawie sondaży. Przerywana: scenariusz. Przerwa dla PiS i R+: lipiec 2026 (zmiana definicji — R+ podawane w sondażach).</div>
+</div>
 
-  <div id="syncBanner" class="sync-banner"></div>
+<div class="card">
+  <h2>Wynik w dniu wyborów (scenariusz) i mandaty</h2>
+  <table id="tbl"></table>
+  <div class="muted" style="margin-top:6px">Udział w głosach ważnych, mediana i przedział 80%. Mandaty: D'Hondt w 41 okręgach, próg 5%.</div>
+</div>
 
-  <!-- Przełącznik podstron -->
-  <nav class="tabs">
-    <button class="tab-btn active" data-tab="view-mandates">📊 Mandaty i Wyniki</button>
-    <button class="tab-btn" data-tab="view-chart">📈 Wykres Trendów</button>
-  </nav>
+<div class="card" id="majCard"></div>
 
-  <!-- PODSTRONA 1: MANDATY I WYNIKI -->
-  <section id="view-mandates" class="tab-view active">
-    <div class="card">
-      <div class="card-title">
-        <span>Mandaty (D'Hondt w 41 okręgach)</span>
-        <span>Większość: 231</span>
-      </div>
-      <div class="sejm-bar-wrap" id="partySeatsBar">
-        <div class="majority-line" title="Większość 231"></div>
-      </div>
-            <div class="bloc-grid">
-        <div class="bloc-box dem">
-          <div class="bloc-name">DEMOKRATYCZNE</div>
-          <div class="bloc-seats" id="demSeats">0</div>
-          <div class="bloc-sub" id="demSub">0,0% poparcia (0,0% Sejmu)</div>
-        </div>
-        <div class="bloc-box right">
-          <div class="bloc-name">PRAWICA</div>
-          <div class="bloc-seats" id="rightSeats">0</div>
-          <div class="bloc-sub" id="rightSub">0,0% poparcia (0,0% Sejmu)</div>
-        </div>
-      </div>
-    </div>
+<div class="card">
+  <h2>Dokąd zmierza prognoza</h2>
+  <div class="muted" style="margin-bottom:4px">Prognoza wyniku w dniu wyborów wyliczona na dzień wskazany na osi (model uruchomiony na danych dostępnych wtedy).</div>
+  <div class="chartbox" style="height:240px"><canvas id="histChart"></canvas></div>
+  <div id="changes" style="margin-top:8px"></div>
+</div>
 
-    <div class="card">
-      <div class="card-title">
-        <span>Scenariusz na listopad 2027</span>
-        <span>Poparcie / Mandaty</span>
-      </div>
-      <div id="partyList"></div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">
-        <span>Założenia modelu</span>
-      </div>
-      <div class="status-note">φ (tłumienie trendu) dobierane automatycznie i płynnie wg liczby miesięcy do 11/2027 (ok. 0,80 daleko od wyborów, 0,85 przy 5–8 mies., 0,75 w ostatnich 4). Trend: ważona średnia ostatnich 6 zmian miesięcznych regresji (30/22/17/13/10/8%). Średnie sondaży (miesięczne i bieżąca agregatorów) korygują poziom startowy tylko wtedy, gdy przez kilka miesięcy odchylają się od regresji w tę samą stronę; waga rośnie od 0,10 (rok do wyborów) do 0,70 (dzień wyborów). Każda partia podąża za własną regresją, suma nie jest wymuszana. Rozłam PiS/R+ (04/2026) przerywa szereg PiS: trend liczony tylko z danych po rozłamie. Mandaty: D\'Hondt w 41 okręgach (profile regionalne wg ewybory.eu), próg 5% od głosów ważnych. Pod wykresem: symulacja 3000 losowań.</div>
-    </div>
-  </section>
-
-  <!-- PODSTRONA 2: WYKRES TRENDÓW REGRESJI -->
-  <section id="view-chart" class="tab-view">
-    <div class="card">
-      <div class="card-title">
-        <span>Trajektoria regresji do lis.27</span>
-        <span>Dotknij partię, aby ukryć/pokazać</span>
-      </div>
-
-      <div class="filter-chips" id="partyChips"></div>
-
-      <div class="chart-box">
-        <canvas id="trendChart"></canvas>
-      </div>
-
-      <div class="legend-guide">
-        <div class="legend-item">
-          <span class="sym-thresh"></span>
-          <span><strong>Linia progu 5%:</strong> wyraźna granica wejścia do Sejmu (obszar poniżej 5% we mgle)</span>
-        </div>
-        <div class="legend-item">
-          <span class="sym-line"></span>
-          <span><strong>Linia ciągła:</strong> historyczna krzywa regresji z tabeli</span>
-        </div>
-        <div class="legend-item">
-          <span class="sym-dash"></span>
-          <span><strong>Linia przerywana:</strong> wygaszana projekcja trendu</span>
-        </div>
-        <div class="legend-item">
-          <span class="sym-diamond"></span>
-          <span><strong>Romb (◆):</strong> średnia z 3 agregatorów (ewybory.eu, Atlas Polit., PolitPro)</span>
-        </div>
-        <div class="legend-item">
-          <span class="sym-target"></span>
-          <span><strong>Punkt docelowy (◉):</strong> prognozowany wynik w listopadzie 2027 r.</span>
-        </div>
-      </div>
-    </div>
-  </section>
+<div class="card">
+  <details><summary>Jak to działa i czego nie robi</summary>
+  <ul>
+    <li>Wejście: surowe sondaże z ewybory.eu (pobierane automatycznie). Każdy sondaż jest przeliczany na głosy ważne, a wyniki pracowni korygowane o ich stałe odchylenia.</li>
+    <li>Model: filtr Kalmana z lokalnym trendem, który z czasem wygasa. Parametry dobrane w backteście na sondażach od 10.2023.</li>
+    <li>Rozłamy (PiS/R+, KONF/KKP, TD/PSL+PL2050) liczone jako sumy, potem dzielone na partie. R+ ma krótką historię, więc na razie bez trendu.</li>
+    <li>Przedziały dotyczą średniej sondaży, nie wyniku wyborów — sondaże mają własny błąd systematyczny, którego tu nie ma. Przedziały maleją w miarę zbliżania się wyborów.</li>
+    <li>Data wyborów (14.11.2027) to założenie robocze.</li>
+    <li>To scenariusz oparty na sondażach, nie przewidywanie wyniku.</li>
+  </ul></details>
+</div>
 
 <script>
-  const COLORS = {
-    KO: "#f97316",
-    PIS: "#3b82f6",
-    KONF: "#94a3b8",
-    KPP: "#dc2626",
-    LEWICA: "#f43f5e",
-    RAZEM: "#c084fc",
-    PSL: "#22c55e",
-    "R+": "#06b6d4",
-    PL2050: "#eab308"
-  };
+(function () {
+  const COLORS = { KO: "#f97316", PIS: "#3b82f6", KONF: "#94a3b8", KPP: "#dc2626", LEWICA: "#f43f5e", RAZEM: "#c084fc", PSL: "#22c55e", "R+": "#06b6d4", PL2050: "#eab308" };
+  const LBL = { KO: "KO", PIS: "PiS", KONF: "Konfederacja", KPP: "KKP", LEWICA: "Lewica", RAZEM: "Razem", PSL: "PSL", "R+": "R+", PL2050: "PL2050" };
+  const SNAP_KEY = "scenariusz_sejm_snapshot_v1";
+  let F = null, H = [], active = new Set(), main = null, hist = null;
+  const f1 = x => (x == null ? "–" : x.toFixed(1).replace(".", ","));
+  const fd = s => { const [y, m, d] = String(s).slice(0, 10).split("-"); return `${d}.${m}.${y}`; };
+  const ftime = s => String(s || "").slice(0, 16).replace("T", " ") + " UTC";
 
-  const TEXT_ON_COLOR = {
-    KO: "#fff7ed",
-    PIS: "#eff6ff",
-    KONF: "#0f172a",
-    KPP: "#fef2f2",
-    LEWICA: "#fff1f2",
-    RAZEM: "#3b0764",
-    PSL: "#052e16",
-    "R+": "#083344",
-    PL2050: "#422006"
-  };
+  // Przy powiększeniu strony grubość linii i okno podpowiedzi zachowują wielkość jak przy 100%; wykres jest przerysowywany ostro
+  const zoomPlugin = { id: "zoomScale", beforeUpdate(chart) {
+    const z = Math.max(1, (window.visualViewport && visualViewport.scale) || 1);
+    chart.data.datasets.forEach(ds => { if (ds._bw === undefined) { ds._bw = ds.borderWidth === undefined ? 2 : ds.borderWidth; ds._pr = ds.pointRadius; } ds.borderWidth = ds._bw / z; if (typeof ds._pr === "number") ds.pointRadius = ds._pr / z; });
+    const o = chart.config.options; o.plugins = o.plugins || {}; o.plugins.tooltip = o.plugins.tooltip || {};
+    Object.assign(o.plugins.tooltip, { titleFont: { size: 12 / z }, bodyFont: { size: 12 / z }, padding: 6 / z, boxPadding: 3 / z });
+  } };
+  if (window.visualViewport) { let t = null; visualViewport.addEventListener("resize", () => { clearTimeout(t); t = setTimeout(() => { [main, hist].forEach(c => { if (c) { c.options.devicePixelRatio = (window.devicePixelRatio || 1) * Math.max(1, visualViewport.scale); c.resize(); c.update("none"); } }); }, 200); }); }
 
-  // Rozłamy: PiS → PiS + R+ (R+ notowane od 04/2026): szereg PiS przerwany, nowy od indeksu 16; wcześniejszy obejmuje wyborców R+.
-  // Trzecia Droga (do 05/2025) → PSL + PL2050 (od 06/2025); KPP wydzielone z KONF (05/2025). TD nie jest partią modelu — służy tylko do sum przy normalizacji.
-  const SERIES_BREAK = { PIS: 16 };
-  const EXTRA_SERIES = { TD: [8.3, 7.9, 7.5, 7.2, 6.9, 6.6, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null] };
-  let NORMALIZE = true; // dane z ewybory.eu zawierają niezdecydowanych (suma ≈ 84–95%) — normalizacja do głosów ważnych jak w Atlasie i PolitPro
-  const TARGET_IDX = 35; // indeks 0 = gru.24 … 35 = lis.27 (dzień wyborów)
-  const MONTHS = Array.from({ length: TARGET_IDX + 1 }, (_, i) => ["sty", "lut", "mar", "kwi", "maj", "cze", "lip", "sie", "wrz", "paź", "lis", "gru"][(11 + i) % 12] + "." + String(24 + Math.floor((11 + i) / 12)).slice(-2));
+  const baseOpts = () => ({ responsive: true, maintainAspectRatio: false, animation: false, devicePixelRatio: (window.devicePixelRatio || 1) * Math.max(1, (window.visualViewport && visualViewport.scale) || 1),
+    interaction: { mode: "index", intersect: false },
+    plugins: { legend: { display: false }, tooltip: { filter: it => !it.dataset._band, callbacks: { label: c => c.parsed.y == null ? null : `${c.dataset.label}: ${f1(c.parsed.y)}%` } } },
+    scales: { x: { ticks: { color: "#94a3b8", maxRotation: 0, autoSkip: true, maxTicksLimit: 9 }, grid: { color: "#1e293b" } }, y: { ticks: { color: "#94a3b8", callback: v => v + "%" }, grid: { color: "#334155" }, suggestedMin: 0 } } });
 
+  function drawMain() {
+    const showBand = document.getElementById("bandChk").checked, ds = [];
+    Object.keys(F.parties).filter(p => active.has(p)).forEach(p => {
+      const q = F.parties[p], c = COLORS[p];
+      ds.push({ label: LBL[p], data: q.hist, borderColor: c, backgroundColor: c, borderWidth: 2.2, pointRadius: 2, tension: 0.25, spanGaps: false });
+      ds.push({ label: LBL[p] + " (scenariusz)", data: q.proj, borderColor: c, borderDash: [6, 4], borderWidth: 2, pointRadius: 0, tension: 0.25 });
+      if (showBand) {
+        ds.push({ label: LBL[p] + " dół", data: q.lo, borderColor: "transparent", pointRadius: 0, fill: false, _band: true });
+        ds.push({ label: LBL[p] + " góra", data: q.hi, borderColor: "transparent", pointRadius: 0, backgroundColor: c + "30", fill: "-1", _band: true });
+      }
+    });
+    ds.push({ label: "próg 5%", data: F.months.map(() => 5), borderColor: "#facc15", borderDash: [2, 4], borderWidth: 1, pointRadius: 0 });
+    if (main) main.destroy();
+    main = new Chart(document.getElementById("mainChart"), { type: "line", data: { labels: F.months, datasets: ds }, options: baseOpts(), plugins: [zoomPlugin] });
+  }
 
-  let dataset = [
-    { name: "KO",     bloc: "Demokratyczny", rawSeries: [31.7, 31.7, 31.7, 31.7, 31.7, 31.7, 31.6, 31.5, 31.5, 31.4, 31.4, 31.3, 31.3, 31.2, 31.2, 31.2, 31.2, 31.2, 31.2, 31.2, 31.3, 31.3, 31.4, 31.5], mAvg: [null, null, null, null, null, null, null, null, null, null, null, null, null, 32.7, 31.6, 32.5, 33.3, 33.1, 31, 29.4, 28.6, 31, 32.4], ewAvg: 31.60, apAvg: 32.40, ppAvg: 32.60, visible: true },
-    { name: "PIS",    bloc: "Prawica",       rawSeries: [29.8, 29.7, 29.6, 29.5, 29.3, 29.1, 28.9, 28.7, 28.4, 28.1, 27.8, 27.4, 27, 26.5, 26, 25.4, 24.7, 24, 23.2, 22.3, 21.4, 20.3, 19.2, 18], mAvg: [null, null, null, null, null, null, null, null, null, null, null, null, null, 26.1, 24.2, 24.6, 23.7, 24.5, 24.4, 21, 19, 18.9, 21.3], ewAvg: 20.20, apAvg: 21.90, ppAvg: 22.20, visible: true },
-    { name: "KONF",   bloc: "Prawica",       rawSeries: [13.1, 13.3, 13.4, 13.5, 13.6, 13.7, 13.8, 13.8, 13.8, 13.8, 13.8, 13.7, 13.7, 13.6, 13.5, 13.4, 13.3, 13.2, 13.1, 13, 12.9, 12.8, 12.7, 12.5], mAvg: [null, null, null, null, null, null, null, null, null, null, null, null, null, 11.9, 13.1, 12.4, 12.8, 13, 12.4, 13.6, 13.2, 13.7, 12.4], ewAvg: 13.30, apAvg: 14.10, ppAvg: 13.70, visible: true },
-    { name: "KPP",    bloc: "Prawica",       rawSeries: [null, null, null, null, null, 3.8, 4.5, 5, 5.6, 6.1, 6.6, 7, 7.4, 7.7, 8, 8.2, 8.5, 8.6, 8.7, 8.8, 8.9, 8.8, 8.8, 8.7], mAvg: [null, null, null, null, null, null, null, null, null, null, null, null, null, 8.4, 8.5, 8.5, 8, 8.3, 8.2, 9.6, 8.7, 8.5, 9.3],  ewAvg: 8.50,  apAvg: 9.10,  ppAvg: 8.50,  visible: true },
-    { name: "LEWICA", bloc: "Demokratyczny", rawSeries: [7.4, 7.2, 7.1, 7, 6.9, 6.8, 6.7, 6.6, 6.4, 6.3, 6.2, 6.2, 6.1, 6.1, 6.1, 6.1, 6.2, 6.2, 6.3, 6.4, 6.6, 6.8, 7, 7.3], mAvg: [null, null, null, null, null, null, null, null, null, null, null, null, null, 6.6, 6.4, 5.9, 6.7, 6.8, 7.3, 7.2, 6.1, 7.2, 6.2],  ewAvg: 6.40,  apAvg: 7.30,  ppAvg: 7.30,  visible: true },
-    { name: "R+",     bloc: "Prawica",       rawSeries: [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, 5.9, 5.7, 5.6, 5.4, 5.2, 5.1, 4.9, 4.8], mAvg: [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, 5.5, 5.7, 5.9, 6, 5.4, 5.1, 4.7],  ewAvg: 4.60,  apAvg: 4.70,  ppAvg: 4.70,  visible: false },
-    { name: "PSL",    bloc: "Demokratyczny", rawSeries: [null, null, null, null, null, null, 3, 2.9, 2.9, 2.8, 2.8, 2.8, 2.8, 2.8, 2.8, 2.8, 2.8, 2.9, 2.9, 2.9, 3, 3.1, 3.2, 3.3], mAvg: [null, null, null, null, null, null, null, null, null, null, null, null, null, 2.7, 2.9, 3.1, 3.2, 3.2, 3, 3.3, 2.5, 2.8, 3.4],  ewAvg: null,  apAvg: 3.00,  ppAvg: 3.50,  visible: false },
-    { name: "RAZEM",  bloc: "Demokratyczny", rawSeries: [1.6, 1.9, 2.2, 2.5, 2.8, 3, 3.2, 3.4, 3.6, 3.7, 3.9, 3.9, 4, 4.1, 4.1, 4.1, 4.1, 4, 4, 3.9, 3.7, 3.6, 3.4, 3.2], mAvg: [null, null, null, null, null, null, null, null, null, null, null, null, null, 3.7, 3.9, 3.2, 4.2, 3.2, 3.6, 3.6, 3.7, 4.1, 3.7],  ewAvg: null,  apAvg: 4.40,  ppAvg: 4.20,  visible: false },
-    { name: "PL2050", bloc: "Demokratyczny", rawSeries: [null, null, null, null, null, null, 3.7, 3.4, 3.1, 2.8, 2.6, 2.4, 2.2, 2, 1.8, 1.7, 1.6, 1.5, 1.4, 1.4, 1.3, 1.3, 1.3, 1.4], mAvg: [null, null, null, null, null, null, null, null, null, null, null, null, null, 2.2, 2.4, 1.4, 1.5, 1.9, 1.5, 1.3, 1.4, 1.1, 1.3],  ewAvg: null,  apAvg: 1.70,  ppAvg: 1.70,  visible: false }
-  ];
-
-  let lastMonthIdx = 23; // indeks 23 = lis.26
-  let chartInstance = null;
-
-
-  // ===== Mandaty: D'Hondt w 41 okręgach (liczba mandatów wg podziału z 2023 r.; profile regionalne wg symulacji okręgowej ewybory.eu) =====
-  const OTHER_PCT = 1.6; // inne komitety (PolitPro); próg 5% liczony od głosów ważnych
-  const P_ORDER = ["KO", "PIS", "KONF", "KPP", "LEWICA", "R+", "RAZEM", "PSL", "PL2050"];
-  const DIST_M = [12,8,14,12,13,15,12,12,10,9,12,8,14,10,9,10,9,12,20,12,12,11,15,14,12,14,9,7,9,9,12,9,16,8,10,12,9,9,10,8,12];
-  const DIST_P = [[35,20,13,8,6,5,3,3,1],[38,19,12,13,6,4,3,3,1],[38,15,12,6,8,3,6,2,2],[36,17,13,7,7,4,3,3,2],[30,19,14,7,7,4,3,4,1],[21,26,15,11,4,6,3,3,1],[18,29,15,14,4,7,2,4,1],[39,16,13,8,6,4,3,4,1],[42,15,9,6,9,3,5,2,1],[22,27,14,10,5,6,3,4,1],[27,24,13,8,6,5,3,4,1],[25,24,16,9,5,6,3,3,1],[32,18,12,7,8,4,7,3,2],[16,31,16,11,2,7,2,3,1],[17,28,16,10,4,6,3,5,1],[23,25,14,9,5,6,3,5,1],[21,28,15,10,5,6,3,4,1],[19,28,16,11,4,6,3,4,1],[44,11,8,5,11,3,7,2,2],[36,18,12,7,7,4,4,3,2],[34,18,14,9,5,4,3,4,2],[16,31,15,12,3,7,2,3,1],[18,29,16,12,3,7,3,3,1],[21,24,15,10,4,6,3,3,2],[43,14,12,6,8,3,6,2,2],[39,17,14,8,7,4,4,3,2],[29,21,15,8,5,5,3,3,2],[30,21,13,9,6,5,3,3,1],[37,17,13,7,7,4,4,2,2],[31,22,16,8,5,5,3,2,2],[38,18,12,6,7,4,5,2,2],[31,17,11,7,8,4,4,2,1],[21,27,13,11,5,6,3,4,1],[33,20,14,8,6,5,3,4,1],[34,18,14,8,7,4,3,5,1],[29,20,15,9,6,5,3,5,2],[25,22,14,8,7,5,3,4,2],[36,17,14,8,7,4,3,5,2],[45,11,10,5,10,3,7,2,2],[40,18,12,8,7,4,3,3,1],[41,16,11,7,7,4,4,3,1]];
-  const NAT_W = P_ORDER.map((_, j) => DIST_M.reduce((a, m, d) => a + m * DIST_P[d][j], 0) / 460);
-
-  // f[i] – krajowe poparcie partii (skala sumy punktów startowych), names[i] – kody partii
-  function allocateSeats(f, names) {
-    const tot = f.reduce((a, x) => a + x, 0) || 1;
-    const seats = new Array(f.length).fill(0);
-    const idxP = names.map(n => P_ORDER.indexOf(n));
-    const ok = f.map((x, i) => idxP[i] >= 0 && x / tot * (100 - OTHER_PCT) >= 5.0);
-    for (let d = 0; d < 41; d++) {
-      const q = [];
-      f.forEach((x, i) => {
-        if (!ok[i]) return;
-        const v = x * DIST_P[d][idxP[i]] / NAT_W[idxP[i]];
-        for (let k = 1; k <= DIST_M[d]; k++) q.push([v / k, i]);
+  function drawHist() {
+    const labels = H.map(e => fd(e.date).slice(0, 5) + "." + e.date.slice(2, 4)), ds = [];
+    Object.keys(F.parties).filter(p => active.has(p)).forEach(p => {
+      const data = H.map(e => {
+        if ((p === "PIS" || p === "R+") && e.date >= "2026-07-01" && e.date < "2026-08-15" && p === "PIS") return null;   // zmiana definicji PiS
+        return e.forecast[p] ? e.forecast[p][0] : null;
       });
-      q.sort((a, b) => b[0] - a[0]);
-      for (let k = 0; k < DIST_M[d] && k < q.length; k++) seats[q[k][1]]++;
-    }
-    return seats;
-  }
-
-  // ===== Symulacja niepewności (Monte Carlo) =====
-  function gauss() { let u = 0, v = 0; while (!u) u = Math.random(); v = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
-  function pct(arr, q) { const a = [...arr].sort((x, y) => x - y); return a[Math.min(a.length - 1, Math.floor(q * a.length))]; }
-
-  function runMC(computed, N) {
-    const n = computed.length, names = computed.map(p => p.name);
-    const T = computed.reduce((a, p) => a + p.forecast, 0);
-    // odchylenie rośnie z udziałem partii (~√p) i z horyzontem; stały składnik 0,6 pp
-    const sig = computed.map(p => Math.max(0.5, Math.sqrt(0.05 * 0.05 + 0.10 * 0.10 * p.h / 12) * p.forecast) * (p.name === "R+" ? 1.8 : 1));
-    const gapF = 1 + 2 * Math.abs((100 - OTHER_PCT) - computed.reduce((a, p) => a + p.lastRaw, 0)) / (100 - OTHER_PCT);
-    for (let i = 0; i < n; i++) sig[i] *= gapF;
-    const sv = sig.reduce((a, x) => a + x * x, 0);
-    const sh = computed.map(() => []), st = computed.map(() => []);
-    const enter = new Array(n).fill(0); let majD = 0, majR = 0;
-    for (let s = 0; s < N; s++) {
-      const e = sig.map(x => x * gauss()); const se = e.reduce((a, x) => a + x, 0);
-      let f = computed.map((p, i) => Math.max(0, p.forecast + e[i] - sig[i] * sig[i] / sv * se));
-      const F = f.reduce((a, x) => a + x, 0); f = f.map(x => x * T / F);
-      const seats = allocateSeats(f, names);
-      let d = 0, r = 0;
-      computed.forEach((p, i) => { sh[i].push(f[i]); st[i].push(seats[i]); if (seats[i] > 0) enter[i]++; if (p.bloc === "Demokratyczny") d += seats[i]; else r += seats[i]; });
-      if (d >= 231) majD++; if (r >= 231) majR++;
-    }
-    return { sh, st, enter, majD: majD / N, majR: majR / N, N };
-  }
-
-  let mcTimer = null;
-  function scheduleMC() {
-    clearTimeout(mcTimer);
-    mcTimer = setTimeout(() => {
-      const { computed } = computeModel();
-      const mc = runMC(computed, 3000);
-      let box = document.getElementById("mcBox");
-      if (!box) { box = document.createElement("div"); box.id = "mcBox"; box.style.cssText = "margin-top:14px;background:var(--card);border-radius:14px;padding:12px;font-size:.78rem"; document.getElementById("view-chart").appendChild(box); }
-      const f1 = x => x.toFixed(1).replace(".", ",");
-      const rows = computed.map((p, i) => `<div style="display:grid;grid-template-columns:62px 1fr 52px 1fr;gap:4px;padding:3px 0;border-top:1px solid var(--border)"><b>${p.name}</b><span>${f1(pct(mc.sh[i], .5))} (${f1(pct(mc.sh[i], .1))}–${f1(pct(mc.sh[i], .9))})%</span><span>${Math.round(mc.enter[i] / mc.N * 100)}%</span><span>${pct(mc.st[i], .1)}–${pct(mc.st[i], .9)} (med. ${pct(mc.st[i], .5)})</span></div>`).join("");
-      const warns = computed.filter(p => p.aggAvg != null && Math.abs(p.aggAvg - p.last) > 2).map(p => `⚠ ${p.name}: regresja ${f1(p.last)}% vs średnia agregatorów ${f1(p.aggAvg)}% (różnica ${f1(Math.abs(p.aggAvg - p.last))} pp)`).join("<br>");
-      box.innerHTML = `<div style="font-weight:700;margin-bottom:4px">Scenariusz, nie prognoza (${mc.N} symulacji)</div><div style="color:var(--muted);margin-bottom:6px">Poparcie: mediana i przedział 80% na tej samej skali co wykres (środek = prognoza punktowa). Próg 5% i mandaty liczone po przeliczeniu udziałów na głosy ważne. Rozrzut rośnie, gdy suma regresji odbiega od 98,4%. Błąd = ok. 5% udziału w dniu wyborów, ok. 11% udziału rok wcześniej (R+ ×1,8 jako nowa partia) — przyjęte wg typowych błędów średnich sondaży, nie z własnej historii.</div><div style="display:grid;grid-template-columns:62px 1fr 52px 1fr;gap:4px;color:var(--muted)"><span>Partia</span><span>Poparcie</span><span>Próg</span><span>Mandaty</span></div>${rows}<div style="margin-top:8px">Większość 231 mandatów: Partie Demokratyczne <b>${Math.round(mc.majD * 100)}%</b>, Partie Prawicy <b>${Math.round(mc.majR * 100)}%</b></div><div style="margin-top:6px">Suma regresji (surowej): <b>${f1(computed.reduce((a, p) => a + p.lastRaw, 0))}%</b>, suma prognozy: <b>${f1(computed.reduce((a, p) => a + p.forecast, 0))}%</b> (cel ${f1(100 - OTHER_PCT)}%) – im bliżej celu, tym mniejszy rozrzut.</div><label style="display:block;margin-top:6px"><input type="checkbox" id="normChk" ${NORMALIZE ? "checked" : ""}> Normalizuj dane ewybory.eu do głosów ważnych (bez niezdecydowanych)</label>${warns ? `<div style="margin-top:6px;color:var(--warn)">${warns}</div>` : ""}`;
-    box.querySelector("#normChk").onchange = e => { NORMALIZE = e.target.checked; renderAll(); };
-    }, 250);
-  }
-
-  // Limit wagi średnich sondaży: 0,10 przy h≥12 miesiącach do wyborów, rośnie liniowo do 0,70 w dniu wyborów
-  function anchorCap(h) { return 0.10 + 0.60 * Math.min(1, Math.max(0, 1 - h / 12)); }
-
-  // φ(h): ciągła interpolacja wartości z opisu modelu (0,80 dla h>8; 0,85 dla h=5–8; 0,75 dla h≤4), węzły w środkach przedziałów
-  function getAutoPhi(h) {
-    if (h >= 10) return 0.80;
-    if (h >= 6.5) return 0.85 - 0.05 * (h - 6.5) / 3.5;
-    if (h >= 2) return 0.75 + 0.10 * (h - 2) / 4.5;
-    return 0.75;
-  }
-
-  // Wtyczka rysująca lekką mgiełkę poniżej progu 5% na wykresie
-  // Przy powiększeniu strony grubość linii, punkty i okno podpowiedzi są pomniejszane o skalę zoomu, by wyglądały jak przy 100%
-  const zoomScalePlugin = {
-    id: "zoomScale",
-    beforeUpdate(chart) {
-      const z = Math.max(1, (window.visualViewport && visualViewport.scale) || 1);
-      chart.data.datasets.forEach(ds => {
-        if (ds._bw === undefined) { ds._bw = ds.borderWidth !== undefined ? ds.borderWidth : 2; ds._pr = ds.pointRadius; }
-        ds.borderWidth = ds._bw / z;
-        if (typeof ds._pr === "number") ds.pointRadius = ds._pr / z;
-      });
-      // zapis do surowej konfiguracji (nie do proxy opcji Chart.js — przypisanie obiektu-proxy powodowało nieskończoną rekurencję)
-      const o = chart.config.options; o.plugins = o.plugins || {}; o.plugins.tooltip = o.plugins.tooltip || {};
-      o.plugins.tooltip.titleFont = { size: 12 / z }; o.plugins.tooltip.bodyFont = { size: 12 / z };
-      o.plugins.tooltip.padding = 6 / z; o.plugins.tooltip.boxPadding = 3 / z;
-    }
-  };
-
-  const belowThresholdFogPlugin = {
-    id: "belowThresholdFog",
-    beforeDatasetsDraw(chart) {
-      const { ctx, chartArea, scales } = chart;
-      if (!chartArea || !scales.y) return;
-      const y5 = scales.y.getPixelForValue(5.0);
-      const yBottom = chartArea.bottom;
-      if (yBottom <= y5) return;
-
-      ctx.save();
-      const grad = ctx.createLinearGradient(0, y5, 0, yBottom);
-      grad.addColorStop(0, "rgba(250, 204, 21, 0.13)");
-      grad.addColorStop(0.35, "rgba(148, 163, 184, 0.14)");
-      grad.addColorStop(1, "rgba(15, 23, 42, 0.34)");
-      ctx.fillStyle = grad;
-      ctx.fillRect(chartArea.left, y5, chartArea.right - chartArea.left, yBottom - y5);
-      ctx.restore();
-    }
-  };
-
-  function computeModel() {
-    const hMain = Math.max(0, TARGET_IDX - lastMonthIdx);
-    const phi = getAutoPhi(hMain);
-
-    // Średnie agregatorów: średnia ze źródeł, następnie normalizacja do sumy 100% minus inne komitety (gdy dostępne dla wszystkich partii)
-    // Normalizacja do skali głosów ważnych: każdy miesiąc regresji i średnich miesięcznych oraz każde źródło agregatora skalowane do 100% − inne komitety
-    const TOT = 100 - OTHER_PCT;
-    const normCols = key => {
-      const out = dataset.map(() => new Array(TARGET_IDX + 1).fill(null));
-      for (let t = 0; t <= TARGET_IDX; t++) {
-        let S = 0;
-        dataset.forEach(p => { const v = p[key] && p[key][t]; if (typeof v === "number") S += v; });
-        if (key === "rawSeries") Object.values(EXTRA_SERIES).forEach(a => { if (typeof a[t] === "number") S += a[t]; });
-        dataset.forEach((p, i) => { const v = p[key] && p[key][t]; if (typeof v === "number") out[i][t] = (NORMALIZE && S > 0) ? v * TOT / S : v; });
-      }
-      return out;
-    };
-    const nS = normCols("rawSeries"), nM = normCols("mAvg");
-    const dsN = dataset.map((p, i) => ({ ...p, orig: p.rawSeries, rawSeries: nS[i], mAvg: nM[i] }));
-    const srcNorm = ["ewAvg", "apAvg", "ppAvg"].map(k => {
-      const all = dataset.every(p => typeof p[k] === "number");
-      const S = dataset.reduce((a, p) => a + (typeof p[k] === "number" ? p[k] : 0), 0);
-      const f = (NORMALIZE && all && S > 0) ? TOT / S : 1;
-      return dataset.map(p => typeof p[k] === "number" ? p[k] * f : null);
+      ds.push({ label: LBL[p], data, borderColor: COLORS[p], backgroundColor: COLORS[p], borderWidth: 2, pointRadius: 2, tension: 0.2, spanGaps: false });
     });
-    const aggRaw = dataset.map((p, i) => { const v = srcNorm.map(a => a[i]).filter(x => x != null); return v.length ? v.reduce((a, c) => a + c, 0) / v.length : null; });
-    const sumAgg = aggRaw.reduce((a, x) => a + (x || 0), 0);
-    const kAgg = (aggRaw.every(x => x != null) && sumAgg > 0) ? (100 - OTHER_PCT) / sumAgg : 1;
-
-    const computed = dsN.map((p, pi) => {
-      const validPoints = [];
-      p.rawSeries.forEach((v, idx) => {
-        if (typeof v === "number" && !isNaN(v) && idx >= (SERIES_BREAK[p.name] || 0)) validPoints.push({ val: v, idx });
-      });
-
-      const lastObj = validPoints[validPoints.length - 1];
-      const last = lastObj.val;
-      const partyLastIdx = lastObj.idx;
-      const h = Math.max(0, TARGET_IDX - partyLastIdx);
-
-      // Ważony trend z ostatnich ≤6 zmian miesięcznych regresji (dłuższa historia liczy się mocniej niż pojedynczy ruch)
-      const slopeWeights = [0.30, 0.22, 0.17, 0.13, 0.10, 0.08];
-      const stepDiffs = [];
-      for (let m = validPoints.length - 1; m >= 1 && stepDiffs.length < 6; m--) {
-        const cur = validPoints[m];
-        const prevPt = validPoints[m - 1];
-        if (cur.idx - prevPt.idx === 1) {
-          stepDiffs.push(cur.val - prevPt.val);
-        }
-      }
-      let weightedTrend = 0;
-      if (stepDiffs.length > 0) {
-        const usedW = slopeWeights.slice(0, stepDiffs.length);
-        const sumW = usedW.reduce((a, b) => a + b, 0);
-        weightedTrend = stepDiffs.reduce((acc, d, i) => acc + d * (usedW[i] / sumW), 0);
-      }
-
-      const aggAvg = aggRaw[pi] != null ? aggRaw[pi] * kAgg : null;
-      const hasAvg = (typeof aggAvg === "number" && !isNaN(aggAvg));
-      const multH = Math.max(0.01, phi * (1 - Math.pow(phi, Math.max(1, h))) / (1 - phi));
-
-      // Kotwica: odchylenia średnich sondaży od regresji z ostatnich ≤4 miesięcy (średnie miesięczne + bieżąca średnia agregatorów).
-      // Waga = limit zależny od czasu do wyborów × spójność kierunku odchyleń; poziom startowy przesuwa średnie odchylenie, nie pojedynczy punkt.
-      const devs = [];
-      if (hasAvg && !(p.mAvg && typeof p.mAvg[partyLastIdx] === "number")) devs.push(aggAvg - last);
-      for (let t = partyLastIdx; t >= partyLastIdx - 3; t--) {
-        const av = p.mAvg ? p.mAvg[t] : null, rg = p.rawSeries[t];
-        if (typeof av === "number" && typeof rg === "number") devs.push(av - rg);
-      }
-      let devMean = 0, qn = 0.5;
-      if (devs.length) {
-        devMean = devs.reduce((a, x) => a + x, 0) / devs.length;
-        if (devs.length >= 2) { const same = devs.filter(x => x * devMean > 0).length / devs.length; qn = Math.max(0, (same - 0.5) * 2); }
-      }
-      const wAnchor = devs.length ? anchorCap(h) * (0.3 + 0.7 * qn) : 0;
-      const startBase = last + wAnchor * devMean;
-      const adjTrend = weightedTrend;
-
-      const histLine = new Array(TARGET_IDX + 1).fill(null);
-      const projLine = new Array(TARGET_IDX + 1).fill(null);
-      const avgPoint = new Array(TARGET_IDX + 1).fill(null);
-      const targetPoint = new Array(TARGET_IDX + 1).fill(null);
-
-      for (let i = 0; i <= partyLastIdx; i++) {
-        histLine[i] = p.rawSeries[i];
-      }
-
-      if (hasAvg) {
-        avgPoint[partyLastIdx] = aggAvg;
-      }
-
-      projLine[partyLastIdx] = last;
-      let rawForecast = last;
-      for (let step = 1; step <= h; step++) {
-        const multStep = phi * (1 - Math.pow(phi, step)) / (1 - phi);
-        const valStep = Math.max(0, startBase + adjTrend * multStep);
-        projLine[partyLastIdx + step] = valStep;
-        if (step === h) rawForecast = valStep;
-      }
-
-      const forecast = h > 0 ? rawForecast : last;
-      targetPoint[TARGET_IDX] = forecast;
-
-      // Czy partia zbliża się do progu 5% na mniej niż ok. 0,5 p.p. (w prognozie lub dowolnym punkcie trajektorii projekcji)
-      const isNear5 = Math.abs(forecast - 5.0) <= 0.65 || (forecast >= 4.35 && forecast <= 5.50);
-
-      return {
-        ...p,
-        last,
-        partyLastIdx,
-        h,
-        trend: weightedTrend,
-        forecast,
-        isNear5,
-        startBase,
-        lastRaw: p.orig[partyLastIdx],
-        aggAvg: hasAvg ? aggAvg : null,
-        seats: 0,
-        histLine,
-        projLine,
-        avgPoint,
-        targetPoint
-      };
-    });
-
-    // Normalizacja: suma prognozy = 98,4% (gdy suma regresji jest niższa, wszystkie partie są stopniowo podciągane i odwrotnie)
-    // Każda partia podąża za własną regresją; suma nie jest wymuszana (od niej zależy tylko rozrzut symulacji i ocena progu 5% względem głosów ważnych)
-    const Fs = computed.reduce((a, p) => a + p.forecast, 0);
-    computed.forEach(p => { p.isNear5 = Math.abs(p.forecast / Fs * (100 - OTHER_PCT) - 5.0) <= 0.65; });
-    const seatsArr = allocateSeats(computed.map(p => p.forecast), computed.map(p => p.name));
-    computed.forEach((p, i) => { p.seats = seatsArr[i]; });
-
-    return { computed, hMain, phi };
+    if (hist) hist.destroy();
+    const o = baseOpts(); o.scales.x.ticks.maxTicksLimit = 7;
+    hist = new Chart(document.getElementById("histChart"), { type: "line", data: { labels, datasets: ds }, options: o, plugins: [zoomPlugin] });
   }
 
-  function renderAll() {
-    const { computed, hMain, phi } = computeModel();
-    const sorted = [...computed].sort((a, b) => b.forecast - a.forecast);
-
-    const lastLbl = MONTHS[lastMonthIdx] || "lis.26";
-    document.getElementById("dataStatus").textContent =
-      `Baza: ${lastLbl} → cel: lis.27 (h=${hMain}) • AUTO φ=${phi.toFixed(2)}`;
-
-    // Pasek poziomy głównego ekranu z mandatami dla wszystkich partii wchodzących do Sejmu
-    const barEl = document.getElementById("partySeatsBar");
-    barEl.innerHTML = '<div class="majority-line" title="Większość 231"></div>';
-
-    const demParties = sorted.filter(p => p.seats > 0 && p.bloc.toLowerCase().includes("dem"));
-    const rightParties = sorted.filter(p => p.seats > 0 && !p.bloc.toLowerCase().includes("dem"));
-    const barParties = [...demParties, ...rightParties];
-
-    barParties.forEach(p => {
-      const share = (p.seats / 460) * 100;
-      const bg = COLORS[p.name] || "#64748b";
-      const fg = TEXT_ON_COLOR[p.name] || "#ffffff";
-      const seg = document.createElement("div");
-      seg.className = "party-seg";
-      seg.style.width = share + "%";
-      seg.style.background = bg;
-      seg.style.color = fg;
-      seg.title = `${p.name}: ${p.seats} mandatów (${p.forecast.toFixed(2)}%)`;
-
-      if (share >= 4.5) {
-        seg.innerHTML = `<span class="seg-name">${p.name}</span><span class="seg-seats">${p.seats}</span>`;
-      } else if (share >= 2.2) {
-        seg.innerHTML = `<span class="seg-seats">${p.seats}</span>`;
-      }
-      barEl.appendChild(seg);
-    });
-
-    // Sumy bloków w prostokątach poniżej
-    let demSeats = 0, rightSeats = 0, demPct = 0, rightPct = 0;
-    sorted.forEach(p => {
-      if (p.bloc.toLowerCase().includes("dem")) {
-        demSeats += p.seats;
-        demPct += p.forecast;
-      } else {
-        rightSeats += p.seats;
-        rightPct += p.forecast;
-      }
-    });
-
-    const demShare = (demSeats / 460) * 100;
-    const rightShare = (rightSeats / 460) * 100;
-
-    document.getElementById("demSeats").textContent = demSeats;
-    document.getElementById("demSub").textContent = `${demPct.toFixed(1)}% poparcia (${demShare.toFixed(1)}% Sejmu)`;
-    document.getElementById("rightSeats").textContent = rightSeats;
-    document.getElementById("rightSub").textContent = `${rightPct.toFixed(1)}% poparcia (${rightShare.toFixed(1)}% Sejmu)`;
-
-    // Lista partii (bez opisu "STREFA PROGU 4-6%")
-    const listEl = document.getElementById("partyList");
-    listEl.innerHTML = "";
-    const maxPct = Math.max(...sorted.map(p => p.forecast), 35);
-
-    sorted.forEach(p => {
-      const color = COLORS[p.name] || "#94a3b8";
-      const inSejm = p.seats > 0;
-      const barW = Math.min(100, (p.forecast / maxPct) * 100);
-      const diff = p.forecast - p.last;
-      const diffStr = (diff >= 0 ? "+" : "") + diff.toFixed(1);
-
-      const badgeHtml = !inSejm ? '<span class="badge badge-out">&lt;5%</span>' : "";
-
-      const row = document.createElement("div");
-      row.className = "party-row";
-      row.innerHTML = `
-        <div class="party-top">
-          <div class="party-left">
-            <span class="dot" style="background:${color}"></span>
-            <span class="party-name">${p.name}</span>
-            ${badgeHtml}
-          </div>
-          <div class="party-right">
-            <span style="font-size:0.75rem; color:#94a3b8">${diffStr}</span>
-            <span class="pct">${p.forecast.toFixed(2)}%</span>
-            <span class="seats-pill ${inSejm ? 'active' : ''}">${p.seats} m.</span>
-          </div>
-        </div>
-        <div class="prog-track">
-          <div class="prog-fill" style="width:${barW}%; background:${color}"></div>
-        </div>
-      `;
-      listEl.appendChild(row);
-    });
-
-    applyAutoNear5(computed);
-    renderChips(computed);
-    renderChart(computed);
+  function renderTable() {
+    const E = F.election, ps = Object.keys(E).sort((a, b) => E[b].forecast - E[a].forecast);
+    let h = "<tr><th>Partia</th><th>Teraz</th><th>Wybory</th><th>80%</th><th>Próg</th><th>Mandaty</th></tr>";
+    ps.forEach(p => { const r = E[p], s = r.seats;
+      h += `<tr><td><span class="dot" style="background:${COLORS[p]}"></span>${LBL[p]}</td><td>${f1(r.now)}</td><td><b>${f1(r.forecast)}</b></td><td>${f1(r.lo80)}–${f1(r.hi80)}</td><td>${Math.round(r.p_threshold * 100)}%</td><td>${s ? `<b>${s.med}</b> (${s.lo80}–${s.hi80})` : "–"}</td></tr>`; });
+    document.getElementById("tbl").innerHTML = h;
   }
 
-  let autoNear5Applied = false;
-  function applyAutoNear5(computed) {
-    if (autoNear5Applied) return;
-    computed.forEach(comp => {
-      if (comp.isNear5) {
-        const dsItem = dataset.find(d => d.name === comp.name);
-        if (dsItem) dsItem.visible = true;
-      }
-    });
-    autoNear5Applied = true;
+  function renderMaj() {
+    const m = F.majority, box = document.getElementById("majCard");
+    if (!m) { box.innerHTML = ""; return; }
+    const row = (name, p, col, seats) => `<div><b>${name}</b>: szansa większości 231 mandatów <b>${Math.round(p * 100)}%</b> <span class="muted">(mandaty ${seats.med}, 80%: ${seats.lo80}–${seats.hi80})</span></div><div class="bar"><i style="width:${p * 100}%;background:${col}"></i></div>`;
+    box.innerHTML = `<h2>Większość w Sejmie (scenariusz)</h2>${row("Partie demokratyczne (KO, Lewica, Razem, PSL, PL2050)", m.demokratyczny, "#f97316", m.mandaty_D)}${row("Partie prawicy (PiS, Konfederacja, KKP, R+)", m.prawica, "#3b82f6", m.mandaty_P)}<div class="muted">Żadna większość: ${Math.round(m.zadna * 100)}%</div>`;
   }
 
-  function renderChips(computed) {
-    const chipsEl = document.getElementById("partyChips");
-    chipsEl.innerHTML = "";
-    dataset.forEach((p, idx) => {
-      const color = COLORS[p.name] || "#94a3b8";
-      const compItem = computed ? computed.find(c => c.name === p.name) : null;
-      const nearTag = (compItem && compItem.isNear5) ? ' <span style="color:#fbbf24;">≈5%</span>' : '';
-      const btn = document.createElement("button");
-      btn.className = "chip" + (p.visible ? " active" : "");
-      btn.innerHTML = `<span class="dot" style="background:${color}; width:8px; height:8px;"></span>${p.name}${nearTag}`;
-      btn.onclick = () => {
-        dataset[idx].visible = !dataset[idx].visible;
-        renderAll();
-      };
-      chipsEl.appendChild(btn);
+  function renderChanges() {
+    const cur = {}; Object.keys(F.election).forEach(p => cur[p] = F.election[p].forecast);
+    let snap = null; try { snap = JSON.parse(localStorage.getItem(SNAP_KEY) || "null"); } catch (e) {}
+    const box = document.getElementById("changes");
+    let h = "";
+    if (snap && snap.last_poll !== F.last_poll) {
+      const ch = Object.keys(cur).filter(p => snap.f[p] != null && Math.abs(cur[p] - snap.f[p]) >= 0.1).sort((a, b) => Math.abs(cur[b] - snap.f[b]) - Math.abs(cur[a] - snap.f[a]));
+      h = `<div><b>Zmiany od ostatniej wizyty</b> <span class="muted">(sondaże do ${fd(snap.last_poll)} → ${fd(F.last_poll)})</span></div>` + (ch.length ? ch.map(p => { const d = cur[p] - snap.f[p]; return `<div>${LBL[p]}: ${f1(snap.f[p])} → <b>${f1(cur[p])}</b> <span class="${d > 0 ? "ok" : "bad"}">${d > 0 ? "+" : ""}${f1(d)}</span></div>`; }).join("") : `<div class="muted">Brak istotnych zmian (≥ 0,1 pp).</div>`);
+    } else if (!snap) h = `<div class="muted">Brak zapisanego poprzedniego stanu — zmiany pojawią się po następnej aktualizacji.</div>`;
+    else h = `<div class="muted">Brak nowych sondaży od ostatniej wizyty (stan z ${fd(snap.last_poll)}).</div>`;
+    box.innerHTML = h + `<div style="margin-top:6px"><button class="sec" id="saveSnap">Zapamiętaj ten stan jako przeczytany</button></div>`;
+    document.getElementById("saveSnap").onclick = () => { try { localStorage.setItem(SNAP_KEY, JSON.stringify({ last_poll: F.last_poll, f: cur })); } catch (e) {} renderChanges(); };
+  }
+
+  function renderStatus() {
+    const ageH = (Date.now() - Date.parse(F.generated)) / 3.6e6, days = Math.round((Date.parse(F.election_date) - Date.now()) / 864e5);
+    const stale = ageH > 12;
+    document.getElementById("status").innerHTML =
+      `Sondaże do <b>${fd(F.last_poll)}</b> (${F.polls_used} sondaży) · model przeliczony ${ftime(F.generated)} (${ageH < 1 ? "<1" : Math.round(ageH)} h temu)` +
+      (stale ? `<div class="warn">⚠ NIEAKTUALNE — ostatni zapis starszy niż 12 h; sprawdź GitHub Actions (zakładka Actions → „Aktualizuj sondaże”).</div>` : `<div class="ok">✓ aktualizacja działa (dane odświeżane automatycznie co kilka godzin)</div>`) +
+      `<div>Do wyborów (zał. ${fd(F.election_date)}): ok. ${days} dni · horyzont ${F.horizon_weeks} tyg.</div>`;
+  }
+
+  function renderChips() {
+    const box = document.getElementById("chips"); box.innerHTML = "";
+    Object.keys(F.election).sort((a, b) => F.election[b].forecast - F.election[a].forecast).forEach(p => {
+      const b = document.createElement("button"); b.className = "chip" + (active.has(p) ? " on" : ""); b.style.setProperty("--c", COLORS[p]); b.textContent = LBL[p];
+      b.onclick = () => { active.has(p) ? active.delete(p) : active.add(p); b.classList.toggle("on"); drawMain(); drawHist(); };
+      box.appendChild(b);
     });
   }
 
-  function renderChart(computed) {
-    const ctx = document.getElementById("trendChart").getContext("2d");
-    const datasets = [];
-
-    // Wzmocniona linia progu wyborczego 5%
-    datasets.push({
-      label: "Próg wyborczy 5%",
-      data: new Array(TARGET_IDX + 1).fill(5.0),
-      borderColor: "#facc15",
-      borderWidth: 2.2,
-      borderDash: [7, 4],
-      pointRadius: 0,
-      fill: false,
-      order: 10
-    });
-
-    computed.forEach(p => {
-      if (!p.visible) return;
-      const color = COLORS[p.name] || "#94a3b8";
-
-      datasets.push({
-        label: `${p.name} (regresja)`,
-        data: p.histLine,
-        spanGaps: false,
-        segment: { borderColor: c => (SERIES_BREAK[p.name] && c.p0DataIndex === SERIES_BREAK[p.name] - 1) ? "transparent" : undefined },
-        borderColor: color,
-        backgroundColor: color,
-        borderWidth: 1.7,
-        pointRadius: 1.5,
-        pointHoverRadius: 4.5,
-        tension: 0.25,
-        order: 3
-      });
-
-      datasets.push({
-        label: `${p.name} (projekcja)`,
-        data: p.projLine,
-        borderColor: color,
-        backgroundColor: color,
-        borderWidth: 1.6,
-        borderDash: [5, 4],
-        pointRadius: 0,
-        pointHoverRadius: 4.5,
-        tension: 0.25,
-        order: 4
-      });
-
-      if (p.avgPoint[p.partyLastIdx] !== null) {
-        datasets.push({
-          label: `${p.name} (śr. agregatorów)`,
-          data: p.avgPoint,
-          borderColor: "#ffffff",
-          backgroundColor: color,
-          borderWidth: 0.9,
-          pointStyle: "rectRot",
-          pointRadius: 4.5,
-          pointHoverRadius: 6.5,
-          showLine: false,
-          order: 2
-        });
-      }
-
-      datasets.push({
-        label: `${p.name} → lis.27 (${p.forecast.toFixed(1)}%)`,
-        data: p.targetPoint,
-        borderColor: "#ffffff",
-        backgroundColor: color,
-        borderWidth: 2,
-        pointStyle: "circle",
-        pointRadius: 4.5,
-        pointHoverRadius: 6.5,
-        showLine: false,
-        order: 1
-      });
-    });
-
-    if (chartInstance) {
-      chartInstance.destroy();
-    }
-
-    chartInstance = new Chart(ctx, {
-      type: "line",
-      data: {
-        labels: MONTHS,
-        datasets: datasets
-      },
-      plugins: [belowThresholdFogPlugin, zoomScalePlugin],
-      options: {
-        responsive: true,
-        devicePixelRatio: (window.devicePixelRatio || 1) * Math.max(1, (window.visualViewport && visualViewport.scale) || 1),
-        maintainAspectRatio: false,
-        interaction: {
-          mode: "index",
-          intersect: false
-        },
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            backgroundColor: "rgba(15, 23, 42, 0.95)",
-            titleColor: "#f8fafc",
-            bodyColor: "#e2e8f0",
-            borderColor: "rgba(148, 163, 184, 0.3)",
-            borderWidth: 1,
-            filter: function(item) {
-              if (item.dataset.label.includes("(projekcja)") && item.dataIndex === lastMonthIdx) return false;
-              if (item.dataset.label === "Próg wyborczy 5%") return false;
-              return item.parsed.y !== null;
-            },
-            callbacks: {
-              label: function(ctx) {
-                return ` ${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2)}%`;
-              }
-            }
-          }
-        },
-        scales: {
-          x: {
-            min: 11, // widok: lis.25 (indeks 11) … lis.27 (indeks 35) = 24 miesiące
-            max: TARGET_IDX,
-            ticks: {
-              color: "#94a3b8",
-              font: { size: 10 },
-              maxRotation: 45,
-              autoSkip: true,
-              maxTicksLimit: 9
-            },
-            grid: { color: "rgba(148, 163, 184, 0.08)" }
-          },
-          y: {
-            beginAtZero: true,
-            suggestedMax: 36,
-            ticks: {
-              color: "#94a3b8",
-              font: { size: 10 },
-              callback: v => v + "%"
-            },
-            grid: { color: "rgba(148, 163, 184, 0.12)" }
-          }
-        }
-      }
-    });
-  }
-
-  const STORAGE_KEY = "prognoza_sejm_2027_state_v12";
-
-  function saveCurrentState() {
+  async function load() {
+    const st = document.getElementById("status");
     try {
-      const stateObj = {
-        dataset: dataset,
-        lastMonthIdx: lastMonthIdx,
-      };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(stateObj));
-    } catch (e) { /* brak dostępu do localStorage */ }
+      const t = Date.now();
+      const [a, b] = await Promise.all([fetch("forecast.json?t=" + t, { cache: "no-store" }), fetch("forecast_history.json?t=" + t, { cache: "no-store" })]);
+      if (!a.ok) throw new Error("brak pliku forecast.json (HTTP " + a.status + ")");
+      F = await a.json(); H = b.ok ? await b.json() : [];
+    } catch (e) { st.innerHTML = `<span class="bad">Nie udało się wczytać prognozy: ${e.message}. Sprawdź, czy workflow „Aktualizuj sondaże” utworzył forecast.json.</span>`; return; }
+    if (!active.size) Object.keys(F.election).forEach(p => active.add(p));
+    renderStatus(); renderChips(); renderTable(); renderMaj(); drawMain(); drawHist(); renderChanges();
   }
-
-  function loadSavedState() {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return false;
-      const st = JSON.parse(raw);
-      if (st && Array.isArray(st.dataset) && st.dataset.length > 0) {
-        dataset = st.dataset;
-        if (typeof st.lastMonthIdx === "number") lastMonthIdx = st.lastMonthIdx;
-        return true;
-      }
-    } catch (e) { /* uszkodzony stan */ }
-    return false;
-  }
-
-  // Wpinamy zapis stanu na końcu renderAll()
-  const _origRenderAll = renderAll;
-  renderAll = function() {
-    _origRenderAll();
-    saveCurrentState();
-    scheduleMC();
-  };
-
-  // Pobieranie aktualnych średnich miesięcznych ze stron (Jina Reader / CodeTabs / AllOrigins / bezpośredni fetch)
-  async function fetchTextSmart(targetUrl) {
-    const cleanNoProto = targetUrl.replace(/^https?:\/\//, "");
-    const endpoints = [
-      { url: `https://r.jina.ai/http://${cleanNoProto}`, jsonWrap: false },
-      { url: `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`, jsonWrap: false },
-      { url: `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`, jsonWrap: true },
-      { url: targetUrl, jsonWrap: false }
-    ];
-
-    for (const ep of endpoints) {
-      try {
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 9000);
-        const resp = await fetch(ep.url, { cache: "no-store", signal: controller.signal });
-        clearTimeout(timer);
-        if (!resp.ok) continue;
-        if (ep.jsonWrap) {
-          const data = await resp.json();
-          if (data && data.contents && data.contents.length > 150) return data.contents;
-        } else {
-          const txt = await resp.text();
-          if (txt && txt.length > 150) return txt;
-        }
-      } catch (e) { /* spróbuj kolejnej bramki */ }
-    }
-    return null;
-  }
-
-  function extractPartyPercentages(rawContent, patternsMap) {
-    let cleanText = rawContent;
-    if (rawContent.includes("<html") || rawContent.includes("<body") || rawContent.includes("<div")) {
-      const doc = new DOMParser().parseFromString(rawContent, "text/html");
-      cleanText = doc.body ? doc.body.innerText : rawContent;
-    }
-    cleanText = cleanText.replace(/\s+/g, " ");
-    const found = {};
-    for (const [partyCode, regexList] of Object.entries(patternsMap)) {
-      for (const rx of regexList) {
-        const m = cleanText.match(rx);
-        if (m && m[1]) {
-          const val = parseFloat(m[1].replace(",", "."));
-          if (!isNaN(val) && val > 0.2 && val < 60) {
-            found[partyCode] = val;
-            break;
-          }
-        }
-      }
-    }
-    return found;
-  }
-
-  function openReviewChangesPanel(bannerEl, proposedValues, headerMessage) {
-    // Tworzymy kopię roboczą (staging) proponowanych wartości
-    const keys = ["ewAvg", "apAvg", "ppAvg"];
-
-    function countChanges() {
-      let changed = 0;
-      dataset.forEach((p, idx) => {
-        keys.forEach(k => {
-          const oldV = (typeof p[k] === "number" && !isNaN(p[k])) ? p[k] : null;
-          const newV = (typeof proposedValues[idx][k] === "number" && !isNaN(proposedValues[idx][k])) ? proposedValues[idx][k] : null;
-          if (oldV !== newV) changed++;
-        });
-      });
-      return changed;
-    }
-
-    function renderDiffTable() {
-      const changedCount = countChanges();
-      const rowsHtml = dataset.map((p, idx) => {
-        const cellsHtml = keys.map(k => {
-          const oldV = (typeof p[k] === "number" && !isNaN(p[k])) ? p[k] : null;
-          const newV = (typeof proposedValues[idx][k] === "number" && !isNaN(proposedValues[idx][k])) ? proposedValues[idx][k] : null;
-          const isChanged = oldV !== newV;
-
-          const borderStyle = isChanged
-            ? "2px solid #fbbf24; background: rgba(251, 191, 36, 0.16); color: #fef08a; font-weight: 800;"
-            : "1px solid rgba(148, 163, 184, 0.25); background: #1e293b; color: #cbd5e1; font-weight: 500;";
-
-          const diffHint = isChanged
-            ? `<div style="font-size:0.62rem; color:#fbbf24; margin-top:2px; white-space:nowrap;">${oldV !== null ? oldV.toFixed(1) : 'brak'} → <strong>${newV !== null ? newV.toFixed(1) : 'brak'}</strong></div>`
-            : `<div style="font-size:0.60rem; color:#64748b; margin-top:2px;">bez zmian</div>`;
-
-          return `
-            <div>
-              <input type="number" step="0.1" data-idx="${idx}" data-key="${k}" value="${newV ?? ''}" placeholder="—"
-                style="width:100%; border:${borderStyle}; border-radius:6px; padding:4px 5px; font-size:0.75rem;" />
-              ${diffHint}
-            </div>
-          `;
-        }).join("");
-
-        const rowChanged = keys.some(k => {
-          const oldV = (typeof p[k] === "number" && !isNaN(p[k])) ? p[k] : null;
-          const newV = (typeof proposedValues[idx][k] === "number" && !isNaN(proposedValues[idx][k])) ? proposedValues[idx][k] : null;
-          return oldV !== newV;
-        });
-
-        return `
-          <div style="display:grid; grid-template-columns: 64px 1fr 1fr 1fr; gap:5px; align-items:start; margin-top:6px; padding:4px; border-radius:7px; ${rowChanged ? 'background: rgba(251, 191, 36, 0.07);' : ''}">
-            <div style="padding-top:4px;">
-              <strong style="font-size:0.74rem; color:${rowChanged ? '#fbbf24' : '#f8fafc'};">${p.name}</strong>
-              ${rowChanged ? '<div style="font-size:0.58rem; color:#fbbf24; font-weight:700;">ZMIANA</div>' : ''}
-            </div>
-            ${cellsHtml}
-          </div>
-        `;
-      }).join("");
-
-      bannerEl.innerHTML = `
-        <div>${headerMessage}</div>
-        <div style="margin-top:6px; font-size:0.72rem; color:#e2e8f0;">
-          Wykryto różnic względem zapisanego stanu: <strong style="color:${changedCount > 0 ? '#fbbf24' : '#94a3b8'};">${changedCount}</strong>
-          (wyróżnione <span style="color:#fbbf24; font-weight:700;">żółtą ramką</span>).
-        </div>
-        <div style="margin-top:8px; padding-top:8px; border-top:1px solid rgba(148,163,184,0.2);">
-          <div style="display:grid; grid-template-columns: 64px 1fr 1fr 1fr; gap:5px; font-size:0.68rem; color:#94a3b8; font-weight:700;">
-            <span>Partia</span><span>ewybory.eu</span><span>Atlas Polit.</span><span>PolitPro</span>
-          </div>
-          ${rowsHtml}
-          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:10px;">
-            <button id="acceptAggChangesBtn" style="background:#14b8a6; color:#042f2e; font-weight:800; border:none; border-radius:8px; padding:8px; font-size:0.76rem; cursor:pointer;">
-              ✅ Akceptuj zmiany
-            </button>
-            <button id="rejectAggChangesBtn" style="background:#334155; color:#f8fafc; font-weight:700; border:1px solid rgba(148,163,184,0.35); border-radius:8px; padding:8px; font-size:0.76rem; cursor:pointer;">
-              ✖️ Odrzuć zmiany
-            </button>
-          </div>
-        </div>
-      `;
-
-      // Aktualizacja wyróżnienia na żywo przy ręcznej zmianie w polu
-      bannerEl.querySelectorAll("input[data-idx]").forEach(inp => {
-        inp.addEventListener("change", () => {
-          const i = parseInt(inp.dataset.idx, 10);
-          const k = inp.dataset.key;
-          const v = parseFloat(inp.value);
-          proposedValues[i][k] = (!isNaN(v) && v > 0) ? parseFloat(v.toFixed(2)) : null;
-          renderDiffTable();
-        });
-      });
-
-      document.getElementById("acceptAggChangesBtn").onclick = () => {
-        bannerEl.querySelectorAll("input[data-idx]").forEach(inp => {
-          const i = parseInt(inp.dataset.idx, 10);
-          const k = inp.dataset.key;
-          const v = parseFloat(inp.value);
-          dataset[i][k] = (!isNaN(v) && v > 0) ? parseFloat(v.toFixed(2)) : null;
-        });
-        renderAll();
-        const nowStr = new Date().toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" });
-        bannerEl.innerHTML = `✅ Zaakceptowano i zapamiętano zmiany (${nowStr}). Wykresy i mandaty zostały przeliczone.`;
-      };
-
-      document.getElementById("rejectAggChangesBtn").onclick = () => {
-        bannerEl.innerHTML = `✖️ Odrzucono pobrane zmiany — zachowano dotychczasowy zapisany stan.`;
-      };
-    }
-
-    renderDiffTable();
-  }
-
-  async function syncAggregatorsFromWeb() {
-    const btn = document.getElementById("syncWebBtn");
-    const banner = document.getElementById("syncBanner");
-    btn.disabled = true;
-    btn.textContent = "⏳ Pobieranie...";
-    banner.classList.add("visible");
-    banner.innerHTML = "Pobieranie danych ze stron: <strong>ewybory.eu</strong>, <strong>Atlas Polityczny</strong>, <strong>PolitPro</strong>...";
-
-    const partyPatterns = {
-      KO:     [/Koalicja Obywatelska[^0-9]{0,45}(\d{1,2}[.,]\d{1,2})\s*%/i, /\bKO\b[^0-9]{0,30}(\d{1,2}[.,]\d{1,2})\s*%/i],
-      PIS:    [/Prawo i Sprawiedliwość[^0-9]{0,45}(\d{1,2}[.,]\d{1,2})\s*%/i, /\bPiS\b[^0-9]{0,30}(\d{1,2}[.,]\d{1,2})\s*%/i],
-      KONF:   [/Konfederacja(?!\s+Korony)[^0-9]{0,45}(\d{1,2}[.,]\d{1,2})\s*%/i],
-      KPP:    [/Konfederacja Korony Polskiej[^0-9]{0,45}(\d{1,2}[.,]\d{1,2})\s*%/i, /\bKKP\b[^0-9]{0,30}(\d{1,2}[.,]\d{1,2})\s*%/i],
-      LEWICA: [/Nowa Lewica[^0-9]{0,45}(\d{1,2}[.,]\d{1,2})\s*%/i, /\bLewica\b[^0-9]{0,30}(\d{1,2}[.,]\d{1,2})\s*%/i],
-      "R+":   [/Rozwój Plus[^0-9]{0,45}(\d{1,2}[.,]\d{1,2})\s*%/i, /\bR\+\b[^0-9]{0,30}(\d{1,2}[.,]\d{1,2})\s*%/i],
-      PSL:    [/Polskie Stronnictwo Ludowe[^0-9]{0,45}(\d{1,2}[.,]\d{1,2})\s*%/i, /\bPSL\b[^0-9]{0,30}(\d{1,2}[.,]\d{1,2})\s*%/i],
-      RAZEM:  [/Partia Razem[^0-9]{0,45}(\d{1,2}[.,]\d{1,2})\s*%/i, /\bRazem\b[^0-9]{0,30}(\d{1,2}[.,]\d{1,2})\s*%/i],
-      PL2050: [/Polska 2050[^0-9]{0,45}(\d{1,2}[.,]\d{1,2})\s*%/i]
-    };
-
-    const sources = [
-      { key: "ewAvg", name: "ewybory.eu",        url: "https://ewybory.eu/sondaze/polska/" },
-      { key: "apAvg", name: "Atlas Polityczny",  url: "https://atlaspolityczny.pl/sondaze/partie" },
-      { key: "ppAvg", name: "PolitPro",          url: "https://politpro.eu/pl/polska/wybory-parlamentarne" }
-    ];
-
-    // Kopia bieżącego stanu jako baza propozycji (zmieniamy tylko odczytane pola)
-    const proposed = dataset.map(p => ({
-      ewAvg: p.ewAvg,
-      apAvg: p.apAvg,
-      ppAvg: p.ppAvg
-    }));
-
-    let updatedSources = [];
-    let failedSources = [];
-    // Dane z własnego pliku data.json (odświeżanego przez GitHub Actions) mają pierwszeństwo przed bramkami proxy
-    let local = null;
-    try { const r = await fetch("data.json?t=" + Date.now(), { cache: "no-store" }); if (r.ok) local = await r.json(); } catch (e) { /* brak pliku */ }
-
-    for (const src of sources) {
-      const ls = local && local.sources && local.sources[src.key];
-      if (ls && Object.keys(ls).length >= 3) {
-        dataset.forEach((p, idx) => { if (typeof ls[p.name] === "number") proposed[idx][src.key] = ls[p.name]; });
-        const tsC = Date.parse(local.checked || local.updated || ""), ageH = isNaN(tsC) ? null : (Date.now() - tsC) / 3.6e6;
-        const fmtT = t => String(t || "").slice(0, 16).replace("T", " ") + " UTC";
-        updatedSources.push(`${src.name}: ${Object.keys(ls).length} partii, sprawdzono ${fmtT(local.checked || local.updated)}${ageH != null ? ` (${ageH < 1 ? "<1" : Math.round(ageH)} h temu)` : ""}${ageH != null && ageH > 12 ? " ⚠ NIEAKTUALNE – sprawdź GitHub Actions" : ""}; wartości ostatnio zmieniły się ${fmtT(local.updated)}`);
-        if (local.status && local.status[src.key] && local.status[src.key] !== "ok") failedSources.push(`${src.name}: ${local.status[src.key]}`);
-        continue;
-      }
-      const content = await fetchTextSmart(src.url);
-      if (!content) {
-        failedSources.push(src.name);
-        continue;
-      }
-      const parsed = extractPartyPercentages(content, partyPatterns);
-      const count = Object.keys(parsed).length;
-      if (count >= 3) {
-        dataset.forEach((p, idx) => {
-          if (typeof parsed[p.name] === "number") {
-            proposed[idx][src.key] = parseFloat(parsed[p.name].toFixed(2));
-          }
-        });
-        updatedSources.push(`${src.name} (${count} partii)`);
-      } else {
-        failedSources.push(src.name);
-      }
-    }
-
-    btn.disabled = false;
-    btn.textContent = "🔄 Aktualizuj";
-
-    let headerMsg = "";
-    if (updatedSources.length > 0) {
-      headerMsg = `📡 Odczytano dane ze źródeł: <strong>${updatedSources.join(", ")}</strong>.` +
-        (failedSources.length > 0 ? ` Brak odpowiedzi z: ${failedSources.join(", ")}.` : "");
-    } else {
-      headerMsg = `⚠️ Brak połączenia z zewnętrznymi serwerami w tym środowisku. Poniżej możesz porównać i zmienić wartości ręcznie:`;
-    }
-
-    openReviewChangesPanel(banner, proposed, headerMsg);
-  }
-
-  document.getElementById("syncWebBtn").addEventListener("click", syncAggregatorsFromWeb);
-
-
-  // Nawigacja zakładek
-  document.querySelectorAll(".tab-btn").forEach(btn => {
-    btn.addEventListener("click", () => {
-      document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
-      document.querySelectorAll(".tab-view").forEach(v => v.classList.remove("active"));
-      btn.classList.add("active");
-      document.getElementById(btn.dataset.tab).classList.add("active");
-      if (btn.dataset.tab === "view-chart") {
-        renderAll();
-      }
-    });
-  });
-
-
-  // Po powiększeniu (pinch-zoom) wykres jest przerysowywany ostro, a linie i okno podpowiedzi zachowują wielkość jak przy 100%
-  if (window.visualViewport) {
-    let zt = null;
-    visualViewport.addEventListener("resize", () => {
-      clearTimeout(zt);
-      zt = setTimeout(() => {
-        if (!chartInstance) return;
-        chartInstance.options.devicePixelRatio = (window.devicePixelRatio || 1) * Math.max(1, visualViewport.scale);
-        chartInstance.resize();
-        chartInstance.update("none");
-      }, 200);
-    });
-  }
-
-  // Ręczny wpis danych: regresja ewybory.eu albo średnia miesięczna, dla wybranego miesiąca
-  document.getElementById("regBtn").addEventListener("click", () => {
-    const box = document.createElement("div");
-    box.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:99;overflow:auto;padding:14px";
-    const opts = MONTHS.map((m, i) => `<option value="${i}">${m}</option>`).join("");
-    box.innerHTML = `<div style="max-width:420px;margin:0 auto;background:var(--card);border-radius:14px;padding:14px"><h3 style="margin-bottom:8px">Wpis danych (%)</h3><select id="regKind" style="width:100%;padding:8px;margin-bottom:8px"><option value="reg">Regresja ewybory.eu</option><option value="avg">Średnia miesięczna</option></select><select id="regMonth" style="width:100%;padding:8px;margin-bottom:8px">${opts}</select><div id="regRows"></div><div style="display:flex;gap:8px;margin-top:10px"><button class="action-btn" id="regSave">Zapisz</button><button class="action-btn secondary" id="regCancel">Anuluj</button></div></div>`;
-    document.body.appendChild(box);
-    const kindSel = box.querySelector("#regKind"), sel = box.querySelector("#regMonth");
-    const arr = p => kindSel.value === "avg" ? (p.mAvg || (p.mAvg = [])) : p.rawSeries;
-    const fill = () => {
-      const i = +sel.value;
-      box.querySelector("#regRows").innerHTML = dataset.map((p, k) => `<label style="display:flex;justify-content:space-between;align-items:center;margin:4px 0">${p.name}<input type="number" step="0.1" inputmode="decimal" data-k="${k}" value="${typeof arr(p)[i] === "number" ? arr(p)[i] : ""}" style="width:90px;padding:6px"></label>`).join("");
-    };
-    const setDefault = () => { sel.value = kindSel.value === "avg" ? Math.max(0, lastMonthIdx - 1) : Math.min(TARGET_IDX, lastMonthIdx + 1); fill(); };
-    kindSel.addEventListener("change", setDefault); sel.addEventListener("change", fill); setDefault();
-    box.querySelector("#regCancel").onclick = () => box.remove();
-    box.querySelector("#regSave").onclick = () => {
-      const i = +sel.value;
-      box.querySelectorAll("input[data-k]").forEach(inp => {
-        const v = parseFloat(String(inp.value).replace(",", "."));
-        arr(dataset[+inp.dataset.k])[i] = isNaN(v) ? null : v;
-      });
-      if (kindSel.value === "reg") lastMonthIdx = Math.max(lastMonthIdx, i);
-      box.remove(); renderAll();
-    };
-  });
-
-
-  // Przy starcie wczytaj zapamiętany stan z localStorage (jeśli istnieje)
-  loadSavedState();
-  renderAll();
+  document.getElementById("refreshBtn").onclick = load;
+  document.getElementById("bandChk").onchange = () => F && drawMain();
+  load();
+})();
 </script>
 </body>
 </html>

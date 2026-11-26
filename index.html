@@ -46,7 +46,7 @@
 </style>
 </head>
 <body>
-<header><h1>Scenariusz Sejm 2027</h1><button id="refreshBtn">🔄 Odśwież</button></header>
+<header><h1>Scenariusz Sejm 2027</h1></header>
 <div class="card" id="status">Ładowanie…</div>
 <nav><button class="tab-btn active" data-tab="t1">📊 Mandaty i Wyniki</button><button class="tab-btn" data-tab="t2">📈 Wykres Trendów</button></nav>
 
@@ -91,6 +91,10 @@
   const DARK = new Set(["KONF", "PL2050", "PSL", "R+"]);
   const SNAP_KEY = "scenariusz_sejm_snapshot_v1";
   let F = null, active = new Set(), main = null;
+  let loadedOnce = false;
+  const PREF_KEY = "scenariusz_sejm_prefs_v1";
+  let prefs = {}; try { prefs = JSON.parse(localStorage.getItem(PREF_KEY) || "{}") || {}; } catch (e) { prefs = {}; }
+  function savePrefs() { try { localStorage.setItem(PREF_KEY, JSON.stringify({ parties: [...active], band: $("bandChk").checked, tab: document.querySelector(".tab-btn.active").dataset.tab })); } catch (e) {} }
   const f1 = x => (x == null ? "–" : x.toFixed(1).replace(".", ","));
   const fd = s => { const [y, m, d] = String(s).slice(0, 10).split("-"); return `${d}.${m}.${y}`; };
   const $ = id => document.getElementById(id);
@@ -171,9 +175,10 @@
   }
 
   function renderStatus() {
+    const pollDays = Math.max(0, Math.round((Date.now() - Date.parse(F.last_poll)) / 864e5));
     const ageH = (Date.now() - Date.parse(F.generated)) / 3.6e6, days = Math.round((Date.parse(F.election_date) - Date.now()) / 864e5), stale = ageH > 12;
-    $("status").innerHTML = `Sondaże do <b>${fd(F.last_poll)}</b> (${F.polls_used} sondaży) · model: ${F.generated.slice(0, 16).replace("T", " ")} UTC (${ageH < 1 ? "<1" : Math.round(ageH)} h temu)` +
-      (stale ? '<br><span class="warn">⚠ NIEAKTUALNE — ostatni zapis starszy niż 12 h; sprawdź GitHub Actions („Aktualizuj sondaże”).</span>' : '<br><span class="ok">✓ aktualizacja działa</span>') +
+    $("status").innerHTML = `Sondaże do <b>${fd(F.last_poll)}</b> (${F.polls_used} sondaży, ostatni sprzed ${pollDays} dn.) · model: ${F.generated.slice(0, 16).replace("T", " ")} UTC (${ageH < 1 ? "<1" : Math.round(ageH)} h temu)` +
+      (stale ? '<br><span class="warn">⚠ NIEAKTUALNE — ostatni zapis starszy niż 12 h; sprawdź GitHub Actions („Aktualizuj sondaże”).</span>' : (pollDays > 10 ? `<br><span class="warn">⚠ brak nowych sondaży od ${pollDays} dni — może to być przerwa w publikacjach albo zmiana strony ewybory.eu.</span>` : '<br><span class="ok">✓ aktualizacja działa</span>')) +
       ` · do wyborów (zał. ${fd(F.election_date)}) ok. ${days} dni`;
   }
 
@@ -181,7 +186,7 @@
     const box = $("chips"); box.innerHTML = "";
     Object.keys(F.election).sort((a, b) => F.election[b].forecast - F.election[a].forecast).forEach(p => {
       const b = document.createElement("button"); b.className = "chip" + (active.has(p) ? " on" : ""); b.style.setProperty("--c", COLORS[p]); b.textContent = LBL[p];
-      b.onclick = () => { active.has(p) ? active.delete(p) : active.add(p); b.classList.toggle("on"); drawMain(); }; box.appendChild(b);
+      b.onclick = () => { active.has(p) ? active.delete(p) : active.add(p); b.classList.toggle("on"); savePrefs(); drawMain(); }; box.appendChild(b);
     });
   }
 
@@ -191,14 +196,22 @@
       if (!r.ok) throw new Error("brak pliku forecast.json (HTTP " + r.status + ")");
       F = await r.json();
     } catch (e) { $("status").innerHTML = `<span style="color:#f87171">Nie udało się wczytać prognozy: ${e.message}. Sprawdź, czy workflow „Aktualizuj sondaże” utworzył forecast.json.</span>`; return; }
-    if (!active.size) Object.keys(F.election).forEach(p => active.add(p));
+    if (!loadedOnce) {                                      // pierwsze wczytanie: przywróć zapamiętane ustawienia wykresu
+      loadedOnce = true;
+      active = new Set(Array.isArray(prefs.parties) ? prefs.parties.filter(p => F.election[p]) : Object.keys(F.election));
+      $("bandChk").checked = !!prefs.band;
+      if (prefs.tab === "t2") document.querySelector('.tab-btn[data-tab="t2"]').click();
+    }
     renderStatus(); renderSeats(); renderList(); renderChanges(); renderChips(); drawMain();
   }
   document.querySelectorAll(".tab-btn").forEach(b => b.onclick = () => {
     document.querySelectorAll(".tab-btn").forEach(x => x.classList.toggle("active", x === b));
-    document.querySelectorAll(".tab-view").forEach(v => v.classList.toggle("active", v.id === b.dataset.tab)); drawMain();
+    document.querySelectorAll(".tab-view").forEach(v => v.classList.toggle("active", v.id === b.dataset.tab)); savePrefs(); drawMain();
   });
-  $("refreshBtn").onclick = load; $("bandChk").onchange = drawMain;
+  $("bandChk").onchange = () => { savePrefs(); drawMain(); };
+  // Dane wczytują się przy otwarciu; po powrocie do aplikacji (po ≥ 30 min) wczytują się ponownie
+  let loadedAt = 0; const _load = load; load = async function () { await _load(); loadedAt = Date.now(); };
+  document.addEventListener("visibilitychange", () => { if (!document.hidden && Date.now() - loadedAt > 30 * 60 * 1000) load(); });
   load();
 })();
 </script>

@@ -201,7 +201,7 @@
     if (!loadedOnce) {                                      // pierwsze wczytanie: przywróć zapamiętane ustawienia wykresu
       loadedOnce = true;
       active = new Set(Array.isArray(prefs.parties) ? prefs.parties.filter(p => F.election[p]) : Object.keys(F.election));
-      $("bandChk").checked = !!prefs.band; $("contChk").checked = !!prefs.cont;
+      $("bandChk").checked = !!prefs.band; $("contChk").checked = prefs.cont === undefined ? true : !!prefs.cont;   // domyślnie włączona; potem zapamiętany wybór
       if (prefs.tab === "t2") document.querySelector('.tab-btn[data-tab="t2"]').click();
     }
     renderStatus(); renderSeats(); renderList(); renderChanges(); renderChips(); drawMain();

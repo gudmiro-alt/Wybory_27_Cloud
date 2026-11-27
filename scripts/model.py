@@ -19,6 +19,9 @@ COMP = {"KO": [("KO", 1)], "LEWICA": [("LEWICA", 1)], "RAZEM": [("RAZEM", 1)], "
         "KONF": [("BK", 1), ("kid_KPP", -1)], "PSL": [("BT", 1), ("kid_PL2050", -1)],
         "R+": [("kid_R+", 1)], "KPP": [("kid_KPP", 1)], "PL2050": [("kid_PL2050", 1)]}
 
+# szersze przedziały dla serii, w których backtest wykazał niedoszacowanie niepewności (pokrycie 80% przedziałów: BK 39%, RAZEM 61% przed kalibracją)
+KAPPA_FLOOR = {"BK": 2.0, "RAZEM": 2.0}
+def kappa_s(name, h): return max(kappa(h), KAPPA_FLOOR.get(name, 0.0))
 def kappa(h): return max(1.3, 1.6 - 0.3 * min(h, 52) / 52)   # skala przedziałów z backtestu (maleje z horyzontem)
 
 def seats_mc(sh):
@@ -61,6 +64,18 @@ class Ser:
         for i in range(len(xs) - 2, -1, -1):
             C = Ps[i] @ F.T @ np.linalg.pinv(Pp[i + 1]); sm[i] = xs[i] + C @ (sm[i + 1] - xp[i + 1])
         return w0, sm
+    def set_alt(self):
+        """Scenariusz kontynuacji trendu: poziom z modelu bez trendu + nachylenie z ostatnich ≤52 tygodni (OLS na wygładzonym poziomie), słabiej wygaszane."""
+        lv = Ser(self.obs, self.w_end, (self.qm, 0.0, 0.0))
+        n = min(52, self.w_end - lv.w0)
+        if n >= 26:
+            ws = np.arange(self.w_end - n, self.w_end + 1, dtype=float); ys = np.array([lv.sm[int(w) - lv.w0][0] for w in ws])
+            self.alt_slope = float(np.polyfit(ws - self.w_end, ys, 1)[0])
+        else: self.alt_slope = 0.0
+        self.alt_level = float(lv.x[0])
+    def alt(self, h):
+        he = sum(0.985 ** k for k in range(1, h + 1)) if h > 0 else 0.0
+        return self.alt_level + max(-8.0, min(8.0, self.alt_slope * he))
     def hist(self, w):
         return float(self.sm[w - self.w0][0]) if self.w0 <= w <= self.w_end else None
     def fc(self, h):
@@ -77,6 +92,7 @@ def build_series(P, w_end, origin):
         if len([o for o in obs if wk(o[0]) <= w_end]) < 3: continue
         s0 = Ser(obs, w_end, PARAMS, trend=False)
         S["kid_" + k] = Ser(obs, w_end, PARAMS, trend=(s0.span >= 26))     # trend dla dziecka dopiero po ≥ 26 tygodniach danych
+    for s_ in S.values(): s_.set_alt()
     return S
 
 def party_val(S, party, getter, dBP, w_date):
@@ -111,7 +127,7 @@ def run(P, delta, origin, nsims=4000, seed=7, full=True):
     ts = sum(v for p, v in nowv.items() if v is not None)
     # ścieżki miesięczne
     for p in present:
-        hist, proj, lo, hi = [], [], [], []
+        hist, proj, lo, hi, projb = [], [], [], [], []
         for (y, m) in mx:
             d = ELECTION if (y, m) == (2027, 11) else dt.date(y, m, 15)
             w = wk(d); past = d <= origin
@@ -122,15 +138,17 @@ def run(P, delta, origin, nsims=4000, seed=7, full=True):
                 if p == "PIS" and (y, m) < (2026, 7) and "kid_R+" in S: hv = party_val({k: S[k] for k in ("BP",)}, "PIS", lambda s: s.hist(min(w, w_end)), dBP, None)
             hist.append(None if hv is None else round(hv, 2))
             if d > origin:
-                h = w - w_end; mv = 0.0; vv = 0.0; okk = True
+                h = w - w_end; mv = 0.0; mb = 0.0; vv = 0.0
                 for name, sign in COMP[p]:
                     if name not in S: continue
-                    a, b = S[name].fc(h); mv += sign * a; vv += b
-                if p == "PIS" and "kid_R+" not in S: mv -= dBP
-                proj.append(mv); lo.append(math.sqrt(vv) * kappa(h))
+                    a, b = S[name].fc(h); al = S[name].alt(h); mv += sign * a; mb += sign * al
+                    vv += b * kappa_s(name, h) ** 2 + (0.5 * (al - a)) ** 2                 # niepewność: model + połowa rozstrzału między scenariuszami
+                if p == "PIS" and "kid_R+" not in S: mv -= dBP; mb -= dBP
+                proj.append(mv); projb.append(mb); lo.append(math.sqrt(vv))
             else:
-                proj.append(None if (y, m) != (origin.year, origin.month) else nowv[p]); lo.append(0.0 if (y, m) == (origin.year, origin.month) else None)
-        out["parties"][p] = {"hist": hist, "proj": proj, "sd": lo}
+                cur = (y, m) == (origin.year, origin.month)
+                proj.append(nowv[p] if cur else None); projb.append(nowv[p] if cur else None); lo.append(0.0 if cur else None)
+        out["parties"][p] = {"hist": hist, "proj": proj, "proj_b": projb, "sd": lo}
     # normalizacja ścieżki prognozy do sumy TOT w każdym miesiącu
     n = len(mx)
     for i in range(n):
@@ -139,9 +157,13 @@ def run(P, delta, origin, nsims=4000, seed=7, full=True):
             k = TOT / sum(vals)
             for p in present:
                 q = out["parties"][p]; q["proj"][i] *= k; q["sd"][i] *= k
+        vb = [out["parties"][p]["proj_b"][i] for p in present]
+        if all(v is not None for v in vb) and mx[i] > (origin.year, origin.month):
+            kb = TOT / sum(vb)
+            for p in present: out["parties"][p]["proj_b"][i] *= kb
     # symulacja w dniu wyborów (niezależne błędy składowych, potem renormalizacja do TOT)
     rng = np.random.default_rng(seed); names = list(S.keys())
-    mean = {k: S[k].fc(he)[0] for k in names}; sd = {k: math.sqrt(S[k].fc(he)[1]) * kap for k in names}
+    mean = {k: S[k].fc(he)[0] for k in names}; sd = {k: math.sqrt(S[k].fc(he)[1] * kappa_s(k, he) ** 2 + (0.5 * (S[k].alt(he) - S[k].fc(he)[0])) ** 2) for k in names}
     draw = {k: rng.normal(mean[k], sd[k], nsims) for k in names}
     sims = np.zeros((nsims, 9))
     for j, p in enumerate(P_ORDER):
@@ -160,29 +182,36 @@ def run(P, delta, origin, nsims=4000, seed=7, full=True):
         pt = seats_mc(medv[None, :])[0]
         nowarr = np.array([[ (nowv[p] or 0) if p in present else 0 for p in P_ORDER]]); nowarr *= TOT / nowarr.sum()
         sn = seats_mc(nowarr)[0]
+    bsh = np.zeros(9)
+    for j, p in enumerate(P_ORDER):
+        if p in present:
+            bsh[j] = max(sum(sg * S[nm].alt(he) for nm, sg in COMP[p] if nm in S) - (dBP if (p == "PIS" and "kid_R+" not in S) else 0.0), 0.0)
+    bsh *= TOT / bsh.sum()
+    if full_seats: ptb = seats_mc(bsh[None, :])[0]
     for j, p in enumerate(P_ORDER):
         if p not in present: continue
         s = sims[:, j]; r = {"now": round(nowv[p] * TOT / ts, 2), "forecast": round(float(np.median(s)), 2),
-                             "lo80": round(float(np.quantile(s, .1)), 2), "hi80": round(float(np.quantile(s, .9)), 2), "p_threshold": round(float((s >= 5).mean()), 3)}
+                             "lo80": round(float(np.quantile(s, .1)), 2), "hi80": round(float(np.quantile(s, .9)), 2), "p_threshold": round(float((s >= 5).mean()), 3), "forecast_b": round(float(bsh[j]), 2)}
         tr = None
         for name, sign in COMP[p]:
             if name in S and sign == 1: tr = float(S[name].x[1]) * 4.33; break
         r["trend_month"] = None if tr is None else round(tr, 2)
         if full_seats:
-            q = st[:, j]; r["seats"] = {"now": int(sn[j]), "pt": int(pt[j]), "med": int(np.median(q)), "lo80": int(np.quantile(q, .1)), "hi80": int(np.quantile(q, .9)), "p_any": round(float((q > 0).mean()), 3)}
+            q = st[:, j]; r["seats"] = {"now": int(sn[j]), "pt": int(pt[j]), "med": int(np.median(q)), "lo80": int(np.quantile(q, .1)), "hi80": int(np.quantile(q, .9)), "p_any": round(float((q > 0).mean()), 3), "pt_b": int(ptb[j])}
         res[p] = r
-        pp = out["parties"][p]; i = n - 1                                   # ostatni miesiąc = dzień wyborów: przedziały z symulacji
+        pp = out["parties"][p]; i = n - 1; pp["proj_b"][i] = r["forecast_b"]                                   # ostatni miesiąc = dzień wyborów: przedziały z symulacji
         pp["proj"][i] = r["forecast"]; pp["lo"] = [None] * n; pp["hi"] = [None] * n
         for t in range(n):
             if pp["proj"][t] is not None and pp["sd"][t] is not None:
                 pp["lo"][t] = round(pp["proj"][t] - 1.2816 * pp["sd"][t], 2); pp["hi"][t] = round(pp["proj"][t] + 1.2816 * pp["sd"][t], 2)
         pp["lo"][i], pp["hi"][i] = r["lo80"], r["hi80"]
-        pp["proj"] = [None if v is None else round(v, 2) for v in pp["proj"]]; del pp["sd"]
+        pp["proj"] = [None if v is None else round(v, 2) for v in pp["proj"]]; pp["proj_b"] = [None if v is None else round(v, 2) for v in pp["proj_b"]]; del pp["sd"]
     out["election"] = res
     if full_seats:
         dm = sum(st[:, j] for j, p in enumerate(P_ORDER) if BLOC[p] == "D" and p in present); pr = sum(st[:, j] for j, p in enumerate(P_ORDER) if BLOC[p] == "P" and p in present)
         out["majority"] = {"demokratyczny": round(float((dm >= 231).mean()), 3), "prawica": round(float((pr >= 231).mean()), 3),
                            "zadna": round(float(((dm < 231) & (pr < 231)).mean()), 3),
+                           "mandaty_b": {"D": int(sum(ptb[j] for j, p in enumerate(P_ORDER) if BLOC[p] == "D")), "P": int(sum(ptb[j] for j, p in enumerate(P_ORDER) if BLOC[p] == "P"))},
                            "mandaty_D": {"pt": int(sum(pt[j] for j, p in enumerate(P_ORDER) if BLOC[p] == "D")), "med": int(np.median(dm)), "lo80": int(np.quantile(dm, .1)), "hi80": int(np.quantile(dm, .9))},
                            "mandaty_P": {"pt": int(sum(pt[j] for j, p in enumerate(P_ORDER) if BLOC[p] == "P")), "med": int(np.median(pr)), "lo80": int(np.quantile(pr, .1)), "hi80": int(np.quantile(pr, .9))}}
     out["horizon_weeks"] = he; out["kappa"] = round(kap, 2)

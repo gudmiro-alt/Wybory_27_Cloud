@@ -5,7 +5,7 @@ korekta pracowni, rozłamy jako bloki, mandaty D'Hondt w 41 okręgach, symulacja
 import json, sys, os, math, datetime as dt
 import numpy as np
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from model_prototype import load, prepare, series, kalman, forecast, wk, TOT, BREAK, D
+from model_prototype import load, prepare, series, kalman, forecast, wk, TOT, BREAK, D, ovar
 
 ELECTION = dt.date(2027, 11, 14)          # założenie robocze (data wyborów nie jest jeszcze ustalona) — zmień tutaj
 PARAMS = (0.18, 0.015, 0.97)               # q_poziom, q_trend, phi tygodniowe (z backtestu: model_prototype.py)
@@ -21,6 +21,25 @@ COMP = {"KO": [("KO", 1)], "LEWICA": [("LEWICA", 1)], "RAZEM": [("RAZEM", 1)], "
 
 # szersze przedziały dla serii, w których backtest wykazał niedoszacowanie niepewności (pokrycie 80% przedziałów: BK 39%, RAZEM 61% przed kalibracją)
 KAPPA_FLOOR = {"BK": 2.0, "RAZEM": 2.0}
+ALT = (0.22, 0.04, 0.985)   # scenariusz „kontynuacja trendu”: szybszy filtr (po ok. 13 tyg. widzi ~80% nowego trendu wobec ~28% w bazowym; w symulacji ok. 4× więcej fałszywych trendów z szumu)
+def prox(w):
+    """Bliskość wyborów 0..1 (0 = 52+ tyg. przed, 1 = dzień wyborów) — wzmacnia reakcję filtra kontynuacji na najnowsze sondaże."""
+    return min(1.0, max(0.0, 1 - (wk(ELECTION) - w) / 52))
+
+def kalman_tv(obs, qm, qb, phi, w_end):
+    import collections
+    obs = [o for o in obs if wk(o[0]) <= w_end]; byw = collections.defaultdict(list)
+    for d, y, q, n in obs: byw[wk(d)].append((y, n))
+    w0 = min(byw); x = np.array([np.mean([y for y, _ in byw[w0]]), 0.0]); P = np.diag([9.0, 0.3 ** 2]); F = np.array([[1, 1], [0, phi]])
+    for w in range(w0, w_end + 1):
+        if w > w0:
+            sc = math.sqrt(max(x[0], 1.5) / 20); mu = 1 + prox(w)
+            x = F @ x; P = F @ P @ F.T + np.diag([(qm * sc * mu) ** 2, (qb * sc * mu) ** 2])
+        for y, n in byw.get(w, []):
+            H = np.array([1.0, 0.0]); S = P[0, 0] + ovar(x[0], n); K = P @ H / S
+            x = x + K * (y - x[0]); P = P - np.outer(K, H) @ P
+    return x, P
+
 def kappa_s(name, h): return max(kappa(h), KAPPA_FLOOR.get(name, 0.0))
 def kappa(h): return max(1.3, 1.6 - 0.3 * min(h, 52) / 52)   # skala przedziałów z backtestu (maleje z horyzontem)
 
@@ -65,17 +84,13 @@ class Ser:
             C = Ps[i] @ F.T @ np.linalg.pinv(Pp[i + 1]); sm[i] = xs[i] + C @ (sm[i + 1] - xp[i + 1])
         return w0, sm
     def set_alt(self):
-        """Scenariusz kontynuacji trendu: poziom z modelu bez trendu + nachylenie z ostatnich ≤52 tygodni (OLS na wygładzonym poziomie), słabiej wygaszane."""
-        lv = Ser(self.obs, self.w_end, (self.qm, 0.0, 0.0))
-        n = min(52, self.w_end - lv.w0)
-        if n >= 26:
-            ws = np.arange(self.w_end - n, self.w_end + 1, dtype=float); ys = np.array([lv.sm[int(w) - lv.w0][0] for w in ws])
-            self.alt_slope = float(np.polyfit(ws - self.w_end, ys, 1)[0])
-        else: self.alt_slope = 0.0
-        self.alt_level = float(lv.x[0])
+        """Scenariusz „kontynuacja trendu”: ten sam model, ale szybszy (większy szum nachylenia, słabsze wygaszanie, rosnąca czułość ku wyborom)."""
+        if self.qb == 0.0 and self.phi == 0.0:                       # seria bez trendu (np. R+ z krótką historią): kontynuacja = poziom
+            self.alt_p = (self.qm, 0.0, 0.0); self.alt_x, self.alt_P = self.x, self.P
+        else:
+            self.alt_p = ALT; self.alt_x, self.alt_P = kalman_tv(self.obs, *ALT, self.w_end)
     def alt(self, h):
-        he = sum(0.985 ** k for k in range(1, h + 1)) if h > 0 else 0.0
-        return self.alt_level + max(-8.0, min(8.0, self.alt_slope * he))
+        return float(self.alt_x[0]) if h <= 0 else float(forecast(self.alt_x, self.alt_P, h, *self.alt_p)[0])
     def hist(self, w):
         return float(self.sm[w - self.w0][0]) if self.w0 <= w <= self.w_end else None
     def fc(self, h):

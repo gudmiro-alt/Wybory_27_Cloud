@@ -71,7 +71,7 @@
     <li>Rozłamy (PiS/R+, KONF/KKP, TD/PSL+PL2050) liczone jako sumy, potem dzielone na partie. R+ ma krótką historię, więc na razie bez trendu.</li>
     <li>Mandaty w pasku: D'Hondt dla mediany poparcia (partie poniżej 5% = 0). Przedziały i szanse większości: z 4000 symulacji; zakres „80%” to środkowe 80% wyników.</li>
     <li>Przedziały dotyczą średniej sondaży, nie wyniku wyborów — sondaże mają własny błąd systematyczny, którego tu nie ma. Maleją w miarę zbliżania się wyborów.</li>
-    <li>Uwaga z testu historycznego: model prognozował blok PiS(+R+) średnio o ok. 4 pp za wysoko — poparcie spadało szybciej, niż pokazywał lokalny trend. Sprawdziłem też trend z krzywizną (przyspieszanie/zwalnianie): pogarszał prognozy, więc go nie użyto. Dlatego obok scenariusza bazowego jest kontynuacja trendu z 12 miesięcy, a przedziały uwzględniają rozstrzał między nimi i są szersze dla serii z gorszym pokryciem w teście (KONF, Razem).</li>
+    <li>Uwaga z testu historycznego: model prognozował blok PiS(+R+) średnio o ok. 4 pp za wysoko — poparcie spadało szybciej, niż pokazywał lokalny trend. Sprawdziłem też trend z krzywizną (przyspieszanie/zwalnianie): pogarszał prognozy, więc go nie użyto. Dlatego obok scenariusza bazowego jest „kontynuacja trendu” — szybszy filtr, mniej dokładny w teście, ale szybciej widzący zmiany kierunku (po ok. 3 miesiącach ok. 80% nowego trendu wobec ok. 30% w bazowym). Różnica między liniami maleje, gdy zbliżają się wybory, bo oba trendy są przedłużane na krótszy czas. Przedziały uwzględniają rozstrzał między nimi i są szersze dla serii z gorszym pokryciem w teście (KONF, Razem).</li>
     <li>Data wyborów (14.11.2027) to założenie robocze. To scenariusz oparty na sondażach, nie przewidywanie wyniku.</li></ul></details></div>
 </section>
 
@@ -79,9 +79,9 @@
   <div class="card">
     <div class="card-title"><span>Poparcie: historia i scenariusz do lis.27</span><span>Dotknij partię, aby ukryć/pokazać</span></div>
     <div class="chips" id="chips"></div>
-    <label class="muted"><input type="checkbox" id="bandChk"> przedziały 80%</label> &nbsp; <label class="muted"><input type="checkbox" id="contChk"> kontynuacja trendu (12 mies.)</label>
+    <label class="muted"><input type="checkbox" id="bandChk"> przedziały 80%</label> &nbsp; <label class="muted"><input type="checkbox" id="contChk"> kontynuacja trendu (szybka)</label>
     <div class="chartbox"><canvas id="mainChart"></canvas></div>
-    <div class="muted" style="margin-top:6px">Linia ciągła: model na podstawie sondaży. Przerywana: scenariusz bazowy do dnia wyborów. Kropkowana: kontynuacja trendu z ostatnich 12 miesięcy (słabiej wygaszana). Żółta kropkowana: próg 5%. Przerwa dla PiS i R+ w lipcu 2026: zmiana definicji (R+ zaczęto podawać w sondażach).</div>
+    <div class="muted" style="margin-top:6px">Linia ciągła: model na podstawie sondaży. Przerywana: scenariusz bazowy do dnia wyborów. Kropkowana: kontynuacja trendu — ten sam model, ale reaguje na nowe sondaże ok. 3 razy szybciej i słabiej wygasza trend; bliżej wyborów reaguje jeszcze szybciej. Jest mniej dokładna od bazowego, ale pokazuje, dokąd poparcie zmierza według najnowszych sondaży. Żółta kropkowana: próg 5%. Przerwa dla PiS i R+ w lipcu 2026: zmiana definicji (R+ zaczęto podawać w sondażach).</div>
   </div>
 </section>
 
@@ -146,7 +146,7 @@
     $("demSeats").textContent = M.mandaty_D.pt; $("rightSeats").textContent = M.mandaty_P.pt;
     $("demSub").innerHTML = `${f1(sum(dP, "forecast"))}% poparcia (${f1(M.mandaty_D.pt / 4.6)}% Sejmu)<br>zakres 80%: ${M.mandaty_D.lo80}–${M.mandaty_D.hi80}<br>szansa 231+: <b>${Math.round(M.demokratyczny * 100)}%</b>`;
     $("rightSub").innerHTML = `${f1(sum(rP, "forecast"))}% poparcia (${f1(M.mandaty_P.pt / 4.6)}% Sejmu)<br>zakres 80%: ${M.mandaty_P.lo80}–${M.mandaty_P.hi80}<br>szansa 231+: <b>${Math.round(M.prawica * 100)}%</b>`;
-    $("noMaj").innerHTML = `Żadna większość: ${Math.round(M.zadna * 100)}% symulacji. Pasek: D'Hondt dla mediany poparcia.<br>Przy kontynuacji trendu z 12 mies.: Demokratyczne <b>${M.mandaty_b.D}</b>, Prawica <b>${M.mandaty_b.P}</b> mandatów.`;
+    $("noMaj").innerHTML = `Żadna większość: ${Math.round(M.zadna * 100)}% symulacji. Pasek: D'Hondt dla mediany poparcia.<br>Przy kontynuacji trendu: Demokratyczne <b>${M.mandaty_b.D}</b>, Prawica <b>${M.mandaty_b.P}</b> mandatów.`;
   }
 
   function renderList() {
@@ -157,7 +157,7 @@
         <div class="party-right"><span class="diff">${diff >= 0 ? "+" : ""}${f1(diff)}</span><span class="pct">${f1(r.forecast)}%</span>
         <span class="seats-pill ${inS ? "active" : ""}"><b>${s ? s.pt : 0} m.</b><small>${s ? s.lo80 + "–" + s.hi80 : ""}</small></span></div></div>
         <div class="prog-track"><div class="prog-fill" style="width:${Math.min(100, r.forecast / mx * 100)}%;background:${COLORS[p]}"></div></div>
-        <div class="party-sub">teraz ${f1(r.now)}% · przedział 80%: ${f1(r.lo80)}–${f1(r.hi80)}% · szansa progu: ${Math.round(r.p_threshold * 100)}%<br>kontynuacja trendu 12 mies.: ${f1(r.forecast_b)}%${s ? " (" + s.pt_b + " m.)" : ""}</div>`;
+        <div class="party-sub">teraz ${f1(r.now)}% · przedział 80%: ${f1(r.lo80)}–${f1(r.hi80)}% · szansa progu: ${Math.round(r.p_threshold * 100)}%<br>kontynuacja trendu: ${f1(r.forecast_b)}%${s ? " (" + s.pt_b + " m.)" : ""}</div>`;
       box.appendChild(row);
     });
   }
